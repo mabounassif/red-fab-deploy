@@ -5,3 +5,4 @@ Python
 build
 dist
 .DS_Store
+env

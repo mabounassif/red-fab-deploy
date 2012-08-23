@@ -16,16 +16,20 @@ class New(Task):
     Provisions and sets up a new joyent server.
 
     Uses the joyent API for provisioning a new server. In order
-    to run this task your fabfile must contain a line like::
-
+    to run this task your fabfile must contain a line like:
         joyent_account = 'account_name'
 
-    Takes the following arguments.
-
-    * **dataset**: The name of the joyent data set you want to use. Defaults to Small 1GB.
-    * **server_size**: The size server you want. Defaults to smartos64.
-    * **type: Required**. The type of server you are provisioning. This should correspond to a setup task. If no such task is found an error will be raised.
-    * **data_center**: The datacenter to provision this server in. If not provided your env will be checked for joyent_default_data_center if that does not exist either an error will be raised.
+    Takes the following arguments:
+        dataset: The name of the joyent data set you want to use.
+                 Defaults to Small 1GB.
+        server_size: The size server you want. Defaults to smartos64.
+        type: Required. The type of server you are provisioning. This
+              should correspond to a setup task. If no such task is
+              found an error will be raised.
+        data_center: The datacenter to provision this server in.
+                     If not provided your env will be checked for
+                     joyent_default_data_center if that does not exist
+                     either an error will be raised.
 
     You will be prompted to enter your ssh key name, this should correspond
     with the name that was used when your key was registered with this joyent

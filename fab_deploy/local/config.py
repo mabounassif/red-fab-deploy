@@ -38,7 +38,7 @@ class SyncGit(Task):
     Syncs your git remotes with your server.ini file.
 
     Will add remotes for each section in your config.ini
-    that has git-sync=true if they do not already exists
+    that has ``git-sync=true`` if they do not already exists
     the new remotes will be named by section name + a count
     for example app-server2. Servers that already exist will
     not be renamed.
@@ -46,8 +46,8 @@ class SyncGit(Task):
     If you have any remotes other than origin you will be prompted
     and asked if you want to remove them.
 
-    Internally 'local.git.rm_remote' is called for removing remotes
-    'local.git.add_remote' is called for adding.
+    Internally ``local.git.rm_remote`` is called for removing remotes
+    ``local.git.add_remote`` is called for adding.
 
     This is a serial task, that should not be called
     with any remote hosts as it performs no remote actions.

@@ -7,12 +7,13 @@ class Deploy(Task):
     Deploys your project.
 
     Takes one optional argument:
-        branch: The branch that you would like to push.
+    
+    * **branch**: The branch that you would like to push.
                 If it is not provided 'master' will be used.
 
 
     This rsync's your collected-static directory with the remote
-    then executes 'local.git.push'.
+    then executes ``local.git.push``.
     """
 
     cache_prefix = 'c-'
@@ -45,7 +46,8 @@ class PrepDeploy(Task):
     Preps your static files for deployment.
 
     Takes one optional argument:
-        branch: The branch that you would like to push.
+        
+    * **branch**: The branch that you would like to push.
                 If it is not provided 'master' will be used.
 
 

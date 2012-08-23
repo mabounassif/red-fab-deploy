@@ -42,7 +42,7 @@ class UpdateHook(Task):
     sure it is executable.
 
     Takes an optional argument:
-        hook: Path to the hook you want installed. If not
+        * **hook**: Path to the hook you want installed. If not
               given the default git/post-receive is used.
     """
 

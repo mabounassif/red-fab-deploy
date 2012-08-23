@@ -12,7 +12,7 @@ class FirewallSingleSync(Task):
     Sync a ipf config file
 
     Takes one required argument:
-        filename: the full path to the file to sync.
+        * **filename**: the full path to the file to sync.
     """
 
     name = 'sync_single'
@@ -33,7 +33,8 @@ class FirewallUpdate(Task):
     Update ipf config file(s)
 
     Takes one argument:
-        section: The name of the section in your server.ini that you
+        
+    * **section**: The name of the section in your server.ini that you
                  would like to update. If section is not provided all
                  sections will be updated.
 

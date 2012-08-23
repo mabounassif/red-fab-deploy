@@ -6,24 +6,13 @@
 Welcome to red-fab-deploy's documentation!
 ==========================================
 
-Contents:
-
 .. toctree::
-   :maxdepth: 2
 
-.. automodule:: fab_deploy
-    :members: 
 
-.. automodule:: fab_deploy.deploy
-    :members: pre_deploy, deploy, migrate
+   intro
+   installation
+   examples
+   reference
 
-.. automodule:: fab_deploy.functions
-    :members:
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Documentation last built on |today|
 

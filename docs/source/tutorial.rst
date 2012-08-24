@@ -6,7 +6,8 @@ Tutorial
 
 red-fab-deploy is better used with django project created by red-start.
 
-# Introduction
+Introduction
+=============
 
 In this tutorial, we have a django app developed by our intelligent developers, and now we are ready to deploy it on powerful cloud servers hosted at the data center of Joyent.  The architecture of the servers will be laid out like the following.
 
@@ -19,20 +20,22 @@ This sounds like one or two days work for you sitting in front of your computers
 
 Here is how we do it.
 
-# Set up your joyent account
+Set up your joyent account
+==========================
 
 To use red-fab-deploy, you need to set up your joyent account so that you can login to the servers you or your team members created at joyent data center.
 
 Create your ssh key by running
 
-    ssh-keygen -t rsa
+``ssh-keygen -t rsa``
 
 and hit return for a few times.  Find the id_rsa.pub file under ~/.ssh/ directory, and add all texts inside it into your joyent account (login to joyent, click 'my account', and 'ssh keys' tab should be on the account settings page.)
 
-# Create fabfile
+Create fabfile
+===============
 
 Create a file named 'fabfile.py' under the root directory of your project, with the following contents.
-
+::
     import os
     from fabric.api import env
     from fab_deploy import *
@@ -46,15 +49,16 @@ and replace 'xxxxx' with your correct settings. You may choose to ignore 'joyent
 
 Now by running
 
-    fab --list
+``fab --list``
 
 You should see a list of fab commands which we are going to use.
 
-# Set up the load balancer server
+Set up the load balancer server
+================================
 
 Run
 
-    fab api.add_server:type=lb_server
+``fab api.add_server:type=lb_server``
 
 If you didn't specify joyent_account and joyent_default_data_center when in fabfile.py, you do it here by attaching additional parameters on the command above.
 
@@ -62,60 +66,58 @@ When an server instance is created on the remote data center, you will see its I
 
 'api.add_server' will create a machine at Joyent data center, and then execute 'setup.xxxxx' task to set up servers.  'xxxx' can be the following types,
 
-    *'lb_server':  load balancer server
-    *'app_server': django app server
-    *'db_server':  database server
-    *'slave_db':   slave database
-    *'dev_server': development server (with database and django app on the same machine, usually for development and testing purpose)
+    * 'lb_server':  load balancer server
+    * 'app_server': django app server
+    * 'db_server':  database server
+    * 'slave_db':   slave database
+    * 'dev_server': development server (with database and django app on the same machine, usually for development and testing purpose)
 
 Under the hood, task 'setup.xxxx' just call and execute related tasks and register related information into $PROJECT_ROOT/deploy/server.ini file, when each type of these servers get created.
 
 If this task failed by accident in the midst, you can try run
 
-    fab setup.xxxx -H admin@ip-address-of-server-instance
+``fab setup.xxxx -H admin@ip-address-of-server-instance``
 
 to finish the setup.  Don't repeat 'api.add_server', because server instance has been created and is alive.
 
-# Set up master database server
+Set up master database server
+==============================
 
-    fab api.add_server:type=db_server
+``fab api.add_server:type=db_server``
 
 postgresql package will be installed on the newly created server instance, and the basic parameters (postgresql.conf) and authentication (pg_hba.conf) will be set up. During the process, you will be prompted to create a databse user and password.  After the process is finished, related information (server-ip, database username etc) will be recorded in server.ini file.
 
-## Install pgbouncer on the database server
+Install pgbouncer on the database server
+=========================================
 
-    fab postgres.setup_pgbouncer  -H admin@ip-address-of-the-database-server
+``fab postgres.setup_pgbouncer  -H admin@ip-address-of-the-database-server``
 
-# Set up slave database server with streaming replication
+Set up slave database server with streaming replication
+========================================================
 
-    fab api.add_server:type=slave_db
+``fab api.add_server:type=slave_db``
 
 Under the hood, fab read info of master database server from server.ini, created server instance, install packages, and set up master-slave streaming replication.
 
-# Set up app_server
+Set up app_server
+==================
 
-    fab api.add_server:type=app_server
+``fab api.add_server:type=app_server``
 
 Run this command twice to set up two app servers.  This command will create server instance, install packages like nginx and python, set up python virtual environment, set up git repo, push the project source code to the server instance, and install all required third parity packages.  Firewall will be updated as well.
 
----------------
+Other Note
+==============
 
 The procedures described above should set up a nice environment for you to run your django app. In the future, if you update your source code, you may run
 
-    fab deploy -H admin@ip-address-of-the-app-server
+``fab deploy -H admin@ip-address-of-the-app-server``
 
 to push the change to the remote app server.
 
 If some data tables need to be created/changed, you can run
 
-    fab migrate -H admin@ip-address-of-the-app-server
+``fab migrate -H admin@ip-address-of-the-app-server``
 
 to migrate the database via 'south'
 
-
-
-
-=======
-``$ fab deploy:branch=develop -H dev-server``
-
-Write a tutuorial here.

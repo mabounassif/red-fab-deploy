@@ -15,7 +15,7 @@ fab_deploy
 
 
 .. automodule:: fab_deploy.functions
-    :members: get_answer, call_command, call_shell_command, gather_remotes, get_remote_name, get_config_filepath, get_task_instance
+    :members: 
 
 
 .. automodule:: fab_deploy.config

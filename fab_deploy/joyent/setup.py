@@ -111,6 +111,8 @@ class LBSetup(BaseSetup):
 
 
     def run(self, name=None):
+        """
+        """
         self._update_config()
 
         self._add_remote(name=name)
@@ -181,6 +183,8 @@ class DBSetup(BaseSetup):
     config_section = 'db-server'
 
     def run(self, name=None):
+        """
+        """
         self._update_config()
         self._secure_ssh()
         self._update_firewalls(self.config_section)
@@ -218,6 +222,8 @@ class SlaveSetup(DBSetup):
         return master
 
     def run(self, name=None):
+        """
+        """
         master = self._get_master()
         self._update_config()
         self._secure_ssh()

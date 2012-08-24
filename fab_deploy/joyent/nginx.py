@@ -22,6 +22,8 @@ class NginxInstall(Task):
     name = 'setup'
 
     def run(self, nginx_conf=None, hosts=[]):
+        """
+        """
         if not nginx_conf:
            nginx_conf = DEFAULT_NGINX_CONF
 

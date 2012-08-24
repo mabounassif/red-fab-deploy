@@ -58,6 +58,8 @@ class SyncGit(Task):
     serial = True
 
     def gather_config_remotes(self):
+        """
+        """
         config_remotes = {}
         conf = env.config_object
 
@@ -68,6 +70,8 @@ class SyncGit(Task):
         return config_remotes
 
     def run(self):
+        """
+        """
         config_remotes = self.gather_config_remotes()
 
         to_delete = []

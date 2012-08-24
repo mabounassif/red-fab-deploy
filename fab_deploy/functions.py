@@ -6,6 +6,8 @@ from fabric.api import env
 from fabric.task_utils import crawl
 
 def get_answer(prompt):
+    """
+    """
     result = None
     while result == None:
         r = raw_input(prompt + ' (y or n)')
@@ -26,12 +28,18 @@ def _command(command, shell=False):
     return o
 
 def call_command(*commands):
+    """
+    """
     return _command(commands)
 
 def call_shell_command(command):
+    """
+    """
     return _command(command, shell=True)
 
 def gather_remotes():
+    """
+    """
     raw_remote = call_command('git', 'remote', '-v')
     remotes = {}
     for line in raw_remote.splitlines():
@@ -40,6 +48,8 @@ def gather_remotes():
     return remotes
 
 def get_remote_name(host, prefix, name=None):
+    """
+    """
     assert prefix
 
     if not host in env.git_reverse:
@@ -59,6 +69,8 @@ def get_remote_name(host, prefix, name=None):
     return name
 
 def get_config_filepath(conf, default):
+    """
+    """
     if not conf:
        conf = default
 
@@ -68,5 +80,7 @@ def get_config_filepath(conf, default):
     return conf
 
 def get_task_instance(name):
+    """
+    """
     from fabric import state
     return crawl(name, state.commands)

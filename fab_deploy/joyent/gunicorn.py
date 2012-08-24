@@ -9,6 +9,8 @@ class GunicornInstall(Task):
     name = 'setup'
 
     def run(self):
+        """
+        """
 
         sudo('mkdir -p /var/log/gunicorn')
         sudo('chown -R www:www /var/log/gunicorn')

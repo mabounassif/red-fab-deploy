@@ -21,6 +21,8 @@ class FirewallSync(Task):
     serial = True
 
     def run(self, section=None):
+        """
+        """
         execute('firewall.update_files', section=section)
         if section:
             sections = [section]

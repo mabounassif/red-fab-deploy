@@ -18,6 +18,8 @@ class Install(Task):
     name = 'setup'
 
     def run(self, branch=None, hook=None, hosts=[]):
+        """
+        """
         self._install_package()
         self._setup_dirs()
         execute('git.update_hook', hook=hook)

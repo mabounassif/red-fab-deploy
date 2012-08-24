@@ -10,7 +10,8 @@ class NginxInstall(Task):
     Install nginx
 
     Takes one optional argument:
-        nginx_conf: the relative path of the nginx config file
+       
+    * **nginx_conf**: the relative path of the nginx config file
                     (that is part of your repo) that you want use
                     as your nginx config. If not provided it will
                     default to nginx/nginx.conf

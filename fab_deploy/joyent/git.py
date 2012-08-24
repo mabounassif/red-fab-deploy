@@ -12,7 +12,7 @@ class Install(Task):
     """
     Setup a remote git repo
 
-    Installs git and creates a repo using env.git_repo_name
+    Installs git and creates a repo using ``env.git_repo_name``
     for the location.
     """
     name = 'setup'
@@ -42,7 +42,8 @@ class UpdateHook(Task):
     sure it is executable.
 
     Takes an optional argument:
-        hook: Path to the hook you want installed. If not
+    
+    * **hook**: Path to the hook you want installed. If not
               given the default git/post-receive is used.
     """
 

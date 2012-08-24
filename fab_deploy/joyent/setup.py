@@ -75,7 +75,7 @@ class LBSetup(BaseSetup):
     After base setup installs nginx setups a git repo. Then
     calls the deploy task.
 
-    Once finished it calls 'nginx.update_allowed_ips'
+    Once finished it calls ``nginx.update_allowed_ips``
 
     This is a serial task as it modifies local config files.
     """
@@ -140,7 +140,7 @@ class AppSetup(LBSetup):
     Also installs gunicorn, python, and other base packages.
     Runs the scripts/setup.sh script.
 
-    Once finished it calls 'nginx.update_app_servers'
+    Once finished it calls ``nginx.update_app_servers``
 
     This is a serial task as it modifies local config files.
     """

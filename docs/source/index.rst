@@ -11,7 +11,7 @@ Welcome to red-fab-deploy's documentation!
 
    intro
    installation
-   examples
+   tutorial
    reference
 
 Documentation last built on |today|

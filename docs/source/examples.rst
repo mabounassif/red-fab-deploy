@@ -1,9 +1,7 @@
 
 .. toctree::
 
-Examples
+Tutorial
 ========
 
-1. Example 
-
-2. Example  
+Write some sort of tutorial here. 

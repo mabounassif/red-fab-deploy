@@ -4,4 +4,4 @@
 Tutorial
 ========
 
-Write some sort of tutorial here. 
+Write a tutuorial here.  

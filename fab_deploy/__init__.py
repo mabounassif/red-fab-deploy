@@ -27,16 +27,16 @@ def setup_env(project_path):
     Provides access to some variables that can be used through
     tasks.
 
-        env.deploy_path: the local location of the deploy folder
-        env.project_path: the local location of the root of your project
-        env.git_repo_name: the remote name of the git repo.
-        env.git_working_dir: the remote path where the code should be deployed
+    * **env.deploy_path**: the local location of the deploy folder
+    * **env.project_path**: the local location of the root of your project
+    * **env.git_repo_name**: the remote name of the git repo.
+    * **env.git_working_dir**: the remote path where the code should be deployed
 
-        env.config_object: The servers.ini file loaded by the config parser
-        env.conf_filename: The path to the servers.ini file
+    * **env.config_object**: The servers.ini file loaded by the config parser
+    * **env.conf_filename**: The path to the servers.ini file
 
-        env.git_remotes: A mapping of git remote names to hosts
-        env.git_reverse: The reverse of above
+    * **env.git_remotes**: A mapping of git remote names to hosts
+    * **env.git_reverse**: The reverse of above
     """
 
     # Setup fabric env

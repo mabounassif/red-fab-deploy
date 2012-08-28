@@ -134,6 +134,7 @@ class PostgresInstall(Task):
             history_file = os.path.join('/var', 'pgsql', '.psql_history')
             if exists(history_file):
                 sudo('rm %s' %history_file)
+        else:
             print "user replicator already exists, skipping creating user."
 
             env.config_object.set('db-server', env.config_object.REPLICATOR,

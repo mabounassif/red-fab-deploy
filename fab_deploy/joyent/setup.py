@@ -218,6 +218,8 @@ class SlaveSetup(DBSetup):
         return master
 
     def run(self, name=None):
+        """
+        """
         master = self._get_master()
         self._update_config(self.config_section)
         self._secure_ssh()

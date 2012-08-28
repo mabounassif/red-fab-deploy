@@ -145,6 +145,8 @@ class PostgresInstall(Task):
             return replicator_pass
 
     def run(self, db_version=None, encrypt=None, save_config=True, **kwargs):
+        """
+        """
         if not db_version:
             db_version = self.db_version
         db_version = ''.join(db_version.split('.')[:2])
@@ -231,6 +233,8 @@ class SlaveSetup(PostgresInstall):
                     %(pub_key, authorized_keys))
 
     def run(self, master=None, encrypt=None, **kwargs):
+        """
+        """
         if not master:
             print "Hey, a master is required for slave."
             sys.exit()
@@ -329,6 +333,8 @@ class PGBouncerInstall(Task):
         return username
 
     def run(self, section=None):
+        """
+        """
 
         sudo('pkg_add libevent')
         sudo('mkdir -p /opt/pkg/bin')

@@ -34,6 +34,8 @@ class Deploy(Task):
         pass
 
     def run(self, branch=None):
+        """
+        """
         if not branch:
             branch = 'master'
 
@@ -64,6 +66,8 @@ class PrepDeploy(Task):
     name = 'prep'
 
     def _clean_working_dir(self, branch):
+        """
+        """
         # Force a checkout
         local('git stash save %s' % self.stash_name)
         local('git checkout %s' % branch)
@@ -81,6 +85,8 @@ class PrepDeploy(Task):
                 local('git stash pop')
 
     def run(self, branch=None):
+        """
+        """
 
         if not branch:
             branch = 'master'

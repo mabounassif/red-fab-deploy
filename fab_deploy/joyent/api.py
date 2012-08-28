@@ -57,6 +57,8 @@ class New(Task):
     serial = True
 
     def run(self, **kwargs):
+        """
+        """
         assert not env.hosts
         if not env.get('joyent_account'):
             print "To use the joyent api you must add a joyent_account value to your env"

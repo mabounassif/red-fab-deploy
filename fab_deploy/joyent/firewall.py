@@ -19,6 +19,8 @@ class FirewallSingleSync(Task):
     name = 'sync_single'
 
     def run(self, filename=None):
+        """
+        """
         assert filename
 
         put(filename, '/var/tmp/tmpipf.conf')
@@ -115,6 +117,8 @@ class FirewallUpdate(Task):
         return file_path
 
     def run(self, section=None):
+        """
+        """
 
         if section:
             sections = [section]

@@ -16,6 +16,9 @@ class CustomConfig(ConfigParser.ConfigParser):
     REPLICATOR_PASS = 'replicator-password'
     GIT_SYNC = 'git-sync'
 
+    EC2_KEY = 'ec2-key'
+    EC2_KEY_FILE = 'ec2-key-file'
+
     def get_list(self, section, key):
         """
         """

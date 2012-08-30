@@ -143,10 +143,10 @@ class AppSetup(LBSetup):
                         section=self.config_section)
 
     def _install_packages(self):
-        sudo('apt-get install python-psycopg2')
-        sudo('apt-get install python-setuptools')
-        sudo('apt-get install python-imaging')
-        sudo('apt-get install python-pip')
+        sudo('apt-get -y install python-psycopg2')
+        sudo('apt-get -y install python-setuptools')
+        sudo('apt-get -y install python-imaging')
+        sudo('apt-get -y install python-pip')
         self._install_venv()
 
     def _install_venv(self):
@@ -209,7 +209,7 @@ class SlaveSetup(DBSetup):
         master = self._get_master()
         self._update_config(self.config_section)
         self._secure_ssh()
-        self._update_firewalls(self.config_section)
+        # self._update_firewalls(self.config_section)
         execute('postgres.slave_setup', master=master)
         self._save_config()
 

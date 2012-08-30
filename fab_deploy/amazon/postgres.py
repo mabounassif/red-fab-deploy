@@ -56,9 +56,6 @@ class PostgresInstall(Task):
             new = "%s = %s" % (key, value)
             sudo('sed -i "/%s/ c\%s" %s' % (origin, new, file))
 
-    def _install_package(self, db_version=None):
-        sudo("apt-get -y install postgresql")
-        sudo("service postgresql start")
 
     def _setup_hba_config(self, config_dir=None, encrypt=None):
         """
@@ -145,14 +142,15 @@ class PostgresInstall(Task):
         """
         if not db_version:
             db_version = self.db_version
-        # db_version = ''.join(db_version.split('.')[:2])
+        db_version = '.'.join(db_version.split('.')[:2])
         data_dir = self._get_data_dir(db_version)
         config_dir = self._get_config_dir(db_version)
 
         if not encrypt:
             encrypt = self.encrypt
 
-        self._install_package(db_version=db_version)
+        sudo("apt-get -y install postgresql")
+        sudo("service postgresql start")
         self.postgres_config['archive_command'] = ("'cp %s %s/wal_archive/%s'"
                                                    % ('%p', data_dir, '%f'))
 
@@ -183,7 +181,7 @@ class SlaveSetup(PostgresInstall):
     def _get_master_db_version(self, master):
         command = ("ssh %s psql --version | head -1 | awk '{print $3}'" % master)
         version_string = local(command, capture=True)
-        version = ''.join(version_string.split('.')[:2])
+        version = '.'.join(version_string.split('.')[:2])
 
         return version
 
@@ -237,10 +235,11 @@ class SlaveSetup(PostgresInstall):
         master_ip = master.split('@')[-1]
         db_version = self._get_master_db_version(master=master)
         data_dir = self._get_data_dir(db_version)
+        config_dir = self._get_config_dir(db_version)
         slave = env.host_string
         slave_ip = slave.split('@')[1]
 
-        self._install_package(db_version=db_version)
+        sudo("apt-get -y install postgresql")
         sudo('service postgresql stop')
 
         self._setup_ssh_key()
@@ -250,10 +249,12 @@ class SlaveSetup(PostgresInstall):
 
             run('echo "select pg_start_backup(\'backup\', true)" | sudo su postgres -c \'psql\'')
             run('sudo su postgres -c "rsync -av --exclude postmaster.pid '
-                '--exclude pg_xlog %s/ postgres@%s:%s/"'%(data_dir, slave_ip, data_dir))
+                '--exclude server.crt --exclude server.key '
+                '--exclude pg_xlog %s/ postgres@%s:%s/"'
+                % (data_dir, slave_ip, data_dir))
             run('echo "select pg_stop_backup()" | sudo su postgres -c \'psql\'')
 
-        self._setup_postgres_config(data_dir=data_dir,
+        self._setup_postgres_config(config_dir=config_dir,
                                     config=self.postgres_config)
         self._setup_archive_dir(data_dir)
 
@@ -263,7 +264,7 @@ class SlaveSetup(PostgresInstall):
 
         if not encrypt:
             encrypt = self.encrypt
-        self._setup_hba_config(data_dir, encrypt)
+        self._setup_hba_config(config_dir, encrypt)
 
         sudo('service postgresql start')
         print('password for replicator on master node is %s' % replicator_pass)
@@ -328,7 +329,7 @@ class PGBouncerInstall(Task):
     def run(self, section=None):
         """
         """
-        sudo('apt-get install pgbouncer')
+        sudo('apt-get -y install pgbouncer')
 
         self._setup_parameter('%s/pgbouncer.ini' % self.config_dir, **self.config)
 

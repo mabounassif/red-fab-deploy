@@ -26,7 +26,7 @@ class Install(Task):
         execute('git.update_hook', hook=hook)
 
     def _install_package(self):
-        sudo("apt-get install git")
+        sudo("apt-get -y install git")
 
     def _setup_dirs(self):
         with settings(hide('running', 'warnings'), warn_only=True):

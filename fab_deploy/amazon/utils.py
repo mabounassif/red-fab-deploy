@@ -2,16 +2,19 @@ import sys
 
 import boto
 
-from fabric.api import task, env, run
+from fabric.api import task, run, execute
 
 @task
 def get_ip(interface, hosts=[]):
     """
+    get IP address
     """
     return run(get_ip_command(interface))
 
+
 def get_ip_command(interface):
     """
+    get IP address
     """
     if not interface:
         interface = 'eth0'
@@ -60,13 +63,13 @@ def get_security_group(conn, type):
             groups = conn.get_all_security_groups(groupnames=['app-sg'])
             return groups[0]
         except:
-            print "You must create security group first."
-            sys.exit()
+            print "Cannot find security group. Now creating it..."
+            execute('api.create_sg')
 
     elif type == 'db_server' or type == 'slave_db':
         try:
             groups = conn.get_all_security_groups(groupnames=['db-sg'])
-            groups[0]
+            return groups[0]
         except:
-            print "You must create security group first."
-            sys.exit()
+            print "Cannot find security group. Now creating it..."
+            execute('api.create_sg')

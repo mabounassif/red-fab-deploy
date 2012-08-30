@@ -90,6 +90,17 @@ class CreateKeyPair(Task):
 class CreateSecurityGroup(Task):
     """
     Set up security policy
+
+    Two security groups will be created.  app-sg and db-sg.
+
+    app-sg will enable access to ports 80 and 22 from everywhere.
+    instances belong to this group can access each other freely, because there
+    may be other services (for example, cache) require some ports open.
+
+    db-sg has only port 5432 and 6432 open to instances in app-sg and db-sg.
+
+    please use internal ips in your django settings files when specifying
+    database settings.
     """
 
     name = 'create_sg'
@@ -115,13 +126,26 @@ class CreateSecurityGroup(Task):
             db_grp = conn.create_security_group('db-sg',
                                              'security group for db-server')
             db_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
-            db_grp.authorize('tcp', 5432, 5432, src_group=app_grp) #native pgsql
-            db_grp.authorize('tcp', 6432, 6432, src_group=app_grp) #pgbouncer
+            #allow access from app and db servers on port 5432 and 6432 (pgbouncer)
+            db_grp.authorize('tcp', 5432, 5432, src_group=app_grp)
+            db_grp.authorize('tcp', 6432, 6432, src_group=app_grp)
+            db_grp.authorize('tcp', 5432, 5432, src_group=db_grp)
+            db_grp.authorize('tcp', 6432, 6432, src_group=db_grp)
 
 
 class New(Task):
     """
-    Provisions and set up a new amazon aws ec2 instance
+    Provisions and set up a new amazon AWS EC2 instance
+
+    You may provide the following parameters through command line.
+
+    type:       server types, can be db_server, app_server, dev_server, slave_db
+    ami_id:     AMI ID
+    select_instance_type:
+                by default, m1.medium will be used. Use 'yes' to
+                select instance type by yourself.
+    static_ip:  by default, an elastic static ip will be allocated and
+                associated with the created instance.  Use 'no' to disable it.
     """
 
     name = 'add_server'
@@ -135,8 +159,14 @@ class New(Task):
         type = kwargs.get('type')
         setup_name = 'setup.%s' % type
 
-        instance_type = DEFAULT_INSTANCE_TYPE
-        ami_id        = DEFAULT_AMI
+        if kwargs.get('select_instance_type').lower() = 'yes':
+            instance_type = select_instance_type()
+        else:
+            instance_type = DEFAULT_INSTANCE_TYPE
+
+        ami_id = kwargs.get('ami_id')
+        if not ami_id:
+            ami_id = DEFAULT_AMI
 
         task = functions.get_task_instance(setup_name)
         if task:
@@ -147,10 +177,6 @@ class New(Task):
         else:
             print "I don't know how to add a %s server" % type
             sys.exit()
-
-        select = kwargs.get('select_instance_type')
-        if select:
-            instance_type = select_instance_type()
 
         key_name = env.config_object.get('amazon-aws',
                                          env.config_object.EC2_KEY)
@@ -187,20 +213,25 @@ class New(Task):
 
         conn.create_tags([instance.id], {"Name": name})
 
-        elastic_ip = conn.allocate_address()
-        print "...Elastic IP %s allocated" % elastic_ip
-        elastic_ip.associate(instance.id)
+        if kwargs.get('static_ip').lower() = 'no':
+            ip = instance.ip_address
+        else:
+            elastic_ip = conn.allocate_address()
+            print "...Elastic IP %s allocated" % elastic_ip
+            elastic_ip.associate(instance.id)
+            ip = elastic_ip.public_ip
 
         print "...EC2 instance is successfully created."
         print "..."
         print "...Using image: %s" % image.name
         print "...Added into security group: %s" %security_group.name
         print "...id: %s" % instance.id
-        print "...IP: %s" % elastic_ip
+        print "...IP: %s" % ip
 
-        local('ssh ubuntu@%s sudo apt-get update' % elastic_ip)
+        #update apt repository so installation of packages can be smooth
+        local('ssh ubuntu@%s sudo apt-get update' % ip)
 
-        # execute(setup_name, name=name, hosts=[host_strong])
+        execute(setup_name, name=name, hosts=[host_strong])
 
 
 create_key = CreateKeyPair()

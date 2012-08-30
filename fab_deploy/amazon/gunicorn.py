@@ -20,7 +20,7 @@ class GunicornInstall(Task):
         sudo('chown -R www-data:www-data /var/log/gunicorn')
 
         # we use supervisor to control gunicorn
-        sudo('apt-get install supervisor')
+        sudo('apt-get -y install supervisor')
 
         conf_file = '/etc/supervisor/supervisord.conf'
 

@@ -17,15 +17,11 @@ DEFAULT_INSTANCE_TYPE = 'm1.medium'
 DEFAULT_REGION  = 'us-west-1'
 
 
-def get_ec2_connection():
+def get_ec2_connection(aws_access_key, aws_secret_key):
     """
     create a connection to aws.
     aws_access_key and aws_secret_key should be defined in fabfile.
     """
-
-    aws_access_key = env.get('aws_access_key')
-    aws_secret_key = env.get('aws_secret_key')
-
     if not aws_access_key or not aws_secret_key:
         print "You must specify your amazon aws credentials to your env."
         sys.exit()
@@ -107,7 +103,13 @@ class CreateSecurityGroup(Task):
     serial = True
 
     def run(self, **kwargs):
-        conn = get_ec2_connection()
+
+        aws_access_key = kwargs.get('aws_access_key', env.get('aws_access_key'))
+        aws_secret_key = kwargs.get('aws_secret_key', env.get('aws_secret_key'))
+        if not aws_access_key or not aws_secret_key:
+            print "You must give aws_access_key and aws_secret_key to continue"
+            sys.exit()
+        conn = get_ec2_connection(aws_access_key, aws_secret_key)
 
         try:
             app_grps = conn.get_all_security_groups(groupnames = ['app-sg'])
@@ -154,7 +156,12 @@ class New(Task):
     def run(self, **kwargs):
         assert not env.hosts
 
-        conn = get_ec2_connection()
+        aws_access_key = kwargs.get('aws_access_key', env.get('aws_access_key'))
+        aws_secret_key = kwargs.get('aws_secret_key', env.get('aws_secret_key'))
+        if not aws_access_key or not aws_secret_key:
+            print "You must give aws_access_key and aws_secret_key to continue"
+            sys.exit()
+        conn = get_ec2_connection(aws_access_key, aws_secret_key)
 
         type = kwargs.get('type')
         setup_name = 'setup.%s' % type

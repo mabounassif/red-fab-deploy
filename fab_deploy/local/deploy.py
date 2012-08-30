@@ -69,6 +69,9 @@ class PrepDeploy(Task):
         local('git checkout %s' % branch)
 
     def _prep_static(self):
+        build_script = os.path.join(env.project_path, 'scripts', 'build.sh')
+        if os.path.exists(build_script):
+            local('sh %s' % build_script)
         local('%s/env/bin/python %s/project/manage.py collectstatic --noinput' % (env.project_path, env.project_path))
 
     def _restore_working_dir(self):

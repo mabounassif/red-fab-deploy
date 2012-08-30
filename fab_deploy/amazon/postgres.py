@@ -1,18 +1,15 @@
 import os
 import sys
-import sgmllib
-import urllib2
 import tempfile
 
 from fabric.api import run, sudo, env, local, hide, settings
-from fabric.contrib.files import append, sed, exists, contains
-from fabric.context_managers import prefix
-from fabric.operations import get, put
-from fabric.context_managers import cd
+from fabric.contrib.files import append, exists
+from fabric.operations import put
 
 from fabric.tasks import Task
 
 from fab_deploy.functions import random_password
+
 
 class PostgresInstall(Task):
     """
@@ -45,65 +42,64 @@ class PostgresInstall(Task):
         'wal_level':         "hot_standby",
         'wal_keep_segments': "32",
         'max_wal_senders':   "5",
-        'archive_mode':      "on" }
+        'archive_mode':      "on"}
 
     def _get_data_dir(self, db_version):
-        return os.path.join('/var', 'pgsql', 'data%s' %db_version)
+        return os.path.join('/var/lib/postgresql', '%s' % db_version, 'main')
+
+    def _get_config_dir(self, db_version):
+        return os.path.join('/etc/postgresql', '%s' % db_version, 'main')
 
     def _setup_parameter(self, file, **kwargs):
         for key, value in kwargs.items():
-            origin = "#%s =" %key
-            new = "%s = %s" %(key, value)
-            sudo('sed -i "/%s/ c\%s" %s' %(origin, new, file))
+            origin = "#%s =" % key
+            new = "%s = %s" % (key, value)
+            sudo('sed -i "/%s/ c\%s" %s' % (origin, new, file))
 
     def _install_package(self, db_version=None):
-        sudo("pkg_add postgresql%s-server" %db_version)
-        sudo("pkg_add postgresql%s-replicationtools" %db_version)
-        sudo("svcadm enable postgresql:pg%s" %db_version)
+        sudo("apt-get -y install postgresql")
+        sudo("service postgresql start")
 
-    def _setup_hba_config(self, data_dir=None, encrypt=None):
+    def _setup_hba_config(self, config_dir=None, encrypt=None):
         """
         enable postgres access without password from localhost
         """
-        hba_conf = os.path.join(data_dir, 'pg_hba.conf')
-        kwargs = {'data_dir':data_dir, 'encrypt':encrypt}
+        hba_conf = os.path.join(config_dir, 'pg_hba.conf')
+        kwargs = {'config_dir': config_dir, 'encrypt': encrypt}
         hba_txts = self.hba_txts % kwargs
 
         if exists(hba_conf, use_sudo=True):
-            sudo("echo '%s' > %s" %(hba_txts, hba_conf))
+            sudo("echo '%s' > %s" % (hba_txts, hba_conf))
         else:
             print ('Could not find file %s. Please make sure postgresql was '
-                   'installed and data dir was created correctly.'%hba_conf)
+                   'installed and data dir was created correctly.'% hba_conf)
             sys.exit()
 
-    def _setup_postgres_config(self, data_dir=None, config=None):
-        postgres_conf = os.path.join(data_dir, 'postgresql.conf')
+    def _setup_postgres_config(self, config_dir=None, config=None):
+        postgres_conf = os.path.join(config_dir, 'postgresql.conf')
 
         if exists(postgres_conf, use_sudo=True):
             self._setup_parameter(postgres_conf, **config)
         else:
             print ('Could not find file %s. Please make sure postgresql was '
-                   'installed and data dir was created correctly.' %postgres_conf)
+                   'installed and data dir was created correctly.' % postgres_conf)
             sys.exit()
 
     def _setup_archive_dir(self, data_dir):
         archive_dir = os.path.join(data_dir, 'wal_archive')
-        sudo("mkdir -p %s" %archive_dir)
-        sudo("chown postgres:postgres %s" %archive_dir)
+        sudo("mkdir -p %s" % archive_dir)
+        sudo("chown postgres:postgres %s" % archive_dir)
 
         return archive_dir
 
     def _setup_ssh_key(self):
-        ssh_dir = '/var/pgsql/.ssh'
+        ssh_dir = '/var/lib/postgresql/.ssh'
 
-        sudo('mkdir -p %s' %ssh_dir)
-        sudo('chown -R postgres:postgres %s' %ssh_dir)
-        sudo('chmod -R og-rwx %s' %ssh_dir)
+        sudo('mkdir -p %s' % ssh_dir)
+        sudo('chown -R postgres:postgres %s' % ssh_dir)
+        sudo('chmod -R og-rwx %s' % ssh_dir)
         rsa = os.path.join(ssh_dir, 'id_rsa')
-        run('sudo su postgres -c "ssh-keygen -t rsa -f %s -N \'\'"' %rsa)
-
-    def _restart_db_server(self, db_version):
-        sudo('svcadm restart postgresql:pg%s' %db_version)
+        run('sudo su postgres -c "ssh-keygen -t rsa -f %s -N \'\'"' % rsa)
 
     def _create_user(self):
         username = raw_input("Now we are creating the database user, please "
@@ -113,11 +109,11 @@ class PostgresInstall(Task):
             username = raw_input("Sorry, you are not allowed to use postgres "
                                  "as username, please choose another one: ")
         db_out = run('echo "select usename from pg_shadow where usename=\'%s\'" |'
-                     'sudo su postgres -c psql' %username)
+                     'sudo su postgres -c psql' % username)
         if username in db_out:
-            print 'user %s already exists, skipping creating user.' %username
+            print 'user %s already exists, skipping creating user.' % username
         else:
-            run("sudo su postgres -c 'createuser -D -S -R -P %s'" %username)
+            run("sudo su postgres -c 'createuser -D -S -R -P %s'" % username)
 
         env.config_object.set('db-server', env.config_object.USERNAME, username)
 
@@ -129,11 +125,13 @@ class PostgresInstall(Task):
             replicator_pass = random_password(12)
 
             c1 = ('CREATE USER replicator REPLICATION LOGIN ENCRYPTED '
-                  'PASSWORD \"\'%s\'\"' %replicator_pass)
-            run("echo %s | sudo su postgres -c \'psql\'" %c1)
+                  'PASSWORD \"\'%s\'\"' % replicator_pass)
+            run("echo %s | sudo su postgres -c \'psql\'" % c1)
             history_file = os.path.join('/var', 'pgsql', '.psql_history')
             if exists(history_file):
-                sudo('rm %s' %history_file)
+                sudo('rm %s' % history_file)
+
+            return replicator_pass
         else:
             print "user replicator already exists, skipping creating user."
 
@@ -142,29 +140,26 @@ class PostgresInstall(Task):
             env.config_object.set('db-server', env.config_object.REPLICATOR_PASS,
                                   replicator_pass)
 
-            return replicator_pass
-
     def run(self, db_version=None, encrypt=None, save_config=True, **kwargs):
         """
         """
         if not db_version:
             db_version = self.db_version
-        db_version = ''.join(db_version.split('.')[:2])
+        # db_version = ''.join(db_version.split('.')[:2])
         data_dir = self._get_data_dir(db_version)
-        hba_conf= os.path.join(data_dir, 'pg_hba.conf')
+        config_dir = self._get_config_dir(db_version)
 
         if not encrypt:
             encrypt = self.encrypt
 
         self._install_package(db_version=db_version)
-        archive_dir = self._setup_archive_dir(data_dir)
         self.postgres_config['archive_command'] = ("'cp %s %s/wal_archive/%s'"
-                                                   %('%p', data_dir, '%f'))
+                                                   % ('%p', data_dir, '%f'))
 
-        self._setup_hba_config(data_dir, encrypt)
-        self._setup_postgres_config(data_dir=data_dir,
+        self._setup_hba_config(config_dir, encrypt)
+        self._setup_postgres_config(config_dir=config_dir,
                                     config=self.postgres_config)
-        self._restart_db_server(db_version)
+        sudo('service postgresql restart')
         self._setup_ssh_key()
         self._create_user()
         self._create_replicator(db_version)
@@ -186,7 +181,7 @@ class SlaveSetup(PostgresInstall):
         'hot_standby':    "on"}
 
     def _get_master_db_version(self, master):
-        command = ("ssh %s psql --version | head -1 | awk '{print $3}'" %master)
+        command = ("ssh %s psql --version | head -1 | awk '{print $3}'" % master)
         version_string = local(command, capture=True)
         version = ''.join(version_string.split('.')[:2])
 
@@ -202,35 +197,35 @@ class SlaveSetup(PostgresInstall):
         recovery_conf = os.path.join(data_dir, 'recovery.conf')
 
         txts = (("standby_mode = 'on'\n") +
-                ("primary_conninfo = 'host=%s " %master_ip) +
-                    ("port=5432 user=replicator password=%s'\n" %password) +
+                ("primary_conninfo = 'host=%s " % master_ip) +
+                    ("port=5432 user=replicator password=%s'\n" % password) +
                 ("trigger_file = '/tmp/pgsql.trigger'\n") +
                 ("restore_command = 'cp -f %s/%s </dev/null'\n"
-                    %(wal_dir, '%f %p')) +
+                    % (wal_dir, '%f %p')) +
                 ("archive_cleanup_command = 'pg_archivecleanup %s %s'\n"
-                    %(wal_dir, "%r")))
+                    % (wal_dir, "%r")))
 
-        sudo('touch %s' %recovery_conf)
+        sudo('touch %s' % recovery_conf)
         append(recovery_conf, txts, use_sudo=True)
-        sudo('chown postgres:postgres %s' %recovery_conf)
+        sudo('chown postgres:postgres %s' % recovery_conf)
 
     def _ssh_key_exchange(self, master, slave):
         """
         copy ssh key(pub) from master to slave, so that master can access slave
         without password via ssh
         """
-        ssh_dir = '/var/pgsql/.ssh'
+        ssh_dir = '/var/lib/postgresql/.ssh'
 
         with settings(host_string=master):
             rsa_pub = os.path.join(ssh_dir, 'id_rsa.pub')
             with hide('output'):
-                pub_key = sudo('cat %s' %rsa_pub)
+                pub_key = sudo('cat %s' % rsa_pub)
 
         with settings(host_string=slave):
             authorized_keys = os.path.join(ssh_dir, 'authorized_keys')
             with hide('output', 'running'):
                 run('sudo su postgres -c "echo %s >> %s"'
-                    %(pub_key, authorized_keys))
+                    % (pub_key, authorized_keys))
 
     def run(self, master=None, encrypt=None, **kwargs):
         """
@@ -244,10 +239,9 @@ class SlaveSetup(PostgresInstall):
         data_dir = self._get_data_dir(db_version)
         slave = env.host_string
         slave_ip = slave.split('@')[1]
-        hba_conf= os.path.join(data_dir, 'pg_hba.conf')
 
         self._install_package(db_version=db_version)
-        sudo('svcadm disable postgresql:pg%s' %db_version)
+        sudo('service postgresql stop')
 
         self._setup_ssh_key()
         self._ssh_key_exchange(master, slave)
@@ -271,8 +265,9 @@ class SlaveSetup(PostgresInstall):
             encrypt = self.encrypt
         self._setup_hba_config(data_dir, encrypt)
 
-        sudo('svcadm enable postgresql:pg%s' %db_version)
-        print('password for replicator on master node is %s' %replicator_pass)
+        sudo('service postgresql start')
+        print('password for replicator on master node is %s' % replicator_pass)
+
 
 class PGBouncerInstall(Task):
     """
@@ -281,9 +276,7 @@ class PGBouncerInstall(Task):
 
     name = 'setup_pgbouncer'
 
-    pgbouncer_src = 'http://pkgsrc.smartos.org/packages/SmartOS/2012Q2/databases/pgbouncer-1.4.2.tgz'
-    pkg_name = 'pgbouncer-1.4.2.tgz'
-    config_dir = '/etc/opt/pkg'
+    config_dir = '/etc/pgbouncer'
 
     config = {
         '*':              'host=127.0.0.1',
@@ -291,9 +284,9 @@ class PGBouncerInstall(Task):
         'pidfile':        '/var/run/pgbouncer/pgbouncer.pid',
         'listen_addr':    '*',
         'listen_port':    '6432',
-        'unix_socket_dir': '/tmp',
+        'unix_socket_dir': '/var/run/postgresql',
         'auth_type':      'md5',
-        'auth_file':      '%s/pgbouncer.userlist' %config_dir,
+        'auth_file':      '%s/pgbouncer.userlist' % config_dir,
         'pool_mode':      'session',
         'admin_users':    'postgres',
         'stats_users':    'postgres',
@@ -301,15 +294,15 @@ class PGBouncerInstall(Task):
 
     def _setup_parameter(self, file, **kwargs):
         for key, value in kwargs.items():
-            origin = "%s =" %key
-            new = "%s = %s" %(key, value)
-            sudo('sed -i "/%s/ c\%s" %s' %(origin, new, file))
+            origin = "%s =" % key
+            new = "%s = %s" % (key, value)
+            sudo('sed -i "/%s/ c\%s" %s' % (origin, new, file))
 
     def _get_passwd(self, username):
         with hide('output'):
             string = run('echo "select usename, passwd from pg_shadow where '
                          'usename=\'%s\' order by 1" | sudo su postgres -c '
-                         '"psql"' %username)
+                         '"psql"' % username)
 
         user, passwd = string.split('\n')[2].split('|')
         user = user.strip()
@@ -317,10 +310,10 @@ class PGBouncerInstall(Task):
 
         __, tmp_name = tempfile.mkstemp()
         fn = open(tmp_name, 'w')
-        fn.write('"%s" "%s" ""\n' %(user, passwd))
+        fn.write('"%s" "%s" ""\n' % (user, passwd))
         fn.close()
-        put(tmp_name, '%s/pgbouncer.userlist'%self.config_dir, use_sudo=True)
-        local('rm %s' %tmp_name)
+        put(tmp_name, '%s/pgbouncer.userlist' % self.config_dir, use_sudo=True)
+        local('rm %s' % tmp_name)
 
     def _get_username(self, section=None):
         try:
@@ -335,27 +328,16 @@ class PGBouncerInstall(Task):
     def run(self, section=None):
         """
         """
+        sudo('apt-get install pgbouncer')
 
-        sudo('pkg_add libevent')
-        sudo('mkdir -p /opt/pkg/bin')
-        sudo("ln -sf /opt/local/bin/awk /opt/pkg/bin/nawk")
-        sudo("ln -sf /opt/local/bin/sed /opt/pkg/bin/nbsed")
-
-        with cd('/tmp'):
-            run('wget %s' %self.pgbouncer_src)
-            sudo('pkg_add %s' %self.pkg_name)
-
-        svc_method = os.path.join(env.configs_dir, 'pgbouncer.xml')
-        put(svc_method, self.config_dir, use_sudo=True)
-
-        self._setup_parameter('%s/pgbouncer.ini' %self.config_dir, **self.config)
+        self._setup_parameter('%s/pgbouncer.ini' % self.config_dir, **self.config)
 
         if not section:
             section = 'db-server'
         username = self._get_username(section)
         self._get_passwd(username)
         # postgres should be the owner of these config files
-        sudo('chown -R postgres:postgres %s' %self.config_dir)
+        sudo('chown -R postgres:postgres %s' % self.config_dir)
 
         # pgbouncer won't run smoothly without these directories
         sudo('mkdir -p /var/run/pgbouncer')
@@ -363,12 +345,8 @@ class PGBouncerInstall(Task):
         sudo('chown postgres:postgres /var/run/pgbouncer')
         sudo('chown postgres:postgres /var/log/pgbouncer')
 
-        # set up log
-        sudo('logadm -C 3 -p1d -c -w /var/log/pgbouncer/pgbouncer.log -z 1')
-        run('svccfg import %s/pgbouncer.xml' %self.config_dir)
-
         # start pgbouncer
-        sudo('svcadm enable pgbouncer')
+        sudo('service pgbouncer start')
 
 setup = PostgresInstall()
 slave_setup = SlaveSetup()

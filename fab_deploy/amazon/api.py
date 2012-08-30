@@ -9,58 +9,34 @@ from fabric.tasks import Task
 
 from fab_deploy import functions
 
-DEFAULT_REGION  = 'us-west-1'
+from utils import get_security_group, select_instance_type
+
+
 DEFAULT_AMI     = 'ami-5965401c' # ubuntu 12.04 x86_64
 DEFAULT_INSTANCE_TYPE = 'm1.medium'
-
-
-def select_instance_type():
-    """
-    select a type of AWS EC2 instance
-    """
-
-    INSTANCE_TYPES = (
-        ('t1.micro',      'Up to 2 ECUs  1 core   613MB',  'Micro'),
-        ('m1.small',      '1 ECU         1 core   1.7GB',  'Small'),
-        ('m1.medium',     '2 ECUs        1 core   3.7GB',  'Medium'),
-        ('m1.large',      '4 ECUs        2 core   7.5GB',  'Large'),
-        ('m1.xlarge',     '8 ECUs        4 cores  15GB',   'Extra Large'),
-        ('c1.medium',     '5 ECUs        2 cores  1.7GB',  'High-CPU Medium'),
-        ('c1.xlarge',     '20 ECUs       8 cores  7 GB',   'High-CPU Extra Large'),
-        ('m2.xlarge',     '6.5 ECUs      2 cores  17.1GB', 'High-Memory Extra Large'),
-        ('m2.2xlarge',    '13 ECUs       4 cores  34.2GB', 'High-Memory Double Extra Large'),
-        ('m2.4xlarge',    '26 ECUs       8 cores  68.4GB', 'High-Memory Quadruple Extra Large'),
-    )
-
-    n = len(INSTANCE_TYPES)
-    for i in range(n):
-        type = INSTANCE_TYPES[i]
-        print "[ %d ]:\t%s\t%s\t%s" %(i+1, type[0], type[1], type[2])
-    sys.stdout.write("These types of instance are available, which one do you want to create?: ")
-
-    while True:
-        try:
-            num = int(raw_input())
-        except:
-            print "Please input a valid number from 0 to %d: " %n
-        return INSTANCE_TYPES[num-1][0]
+DEFAULT_REGION  = 'us-west-1'
 
 
 def get_ec2_connection():
-        aws_access_key = env.get('aws_access_key')
-        aws_secret_key = env.get('aws_secret_key')
+    """
+    create a connection to aws.
+    aws_access_key and aws_secret_key should be defined in fabfile.
+    """
 
-        if not aws_access_key or not aws_secret_key:
-            print "You must specify your amazon aws credentials to your env."
-            sys.exit()
+    aws_access_key = env.get('aws_access_key')
+    aws_secret_key = env.get('aws_secret_key')
 
-        if not env.get('region'):
-            region = DEFAULT_REGION
+    if not aws_access_key or not aws_secret_key:
+        print "You must specify your amazon aws credentials to your env."
+        sys.exit()
 
-        conn = boto.ec2.connect_to_region(region,
-                                          aws_access_key_id=aws_access_key,
-                                          aws_secret_access_key=aws_secret_key)
-        return conn
+    if not env.get('region'):
+        region = DEFAULT_REGION
+
+    conn = boto.ec2.connect_to_region(region,
+                                      aws_access_key_id=aws_access_key,
+                                      aws_secret_access_key=aws_secret_key)
+    return conn
 
 
 class CreateKeyPair(Task):
@@ -73,6 +49,8 @@ class CreateKeyPair(Task):
     """
 
     name = 'create_key'
+    serial = True
+
     section = 'amazon-aws'
 
     def run(self, **kwargs):
@@ -109,25 +87,36 @@ class CreateKeyPair(Task):
         local('ssh-add %s' %key_file)
 
 
-def get_or_create_security_group(conn, type):
+class CreateSecurityGroup(Task):
     """
+    Set up security policy
     """
-    if type == 'app-server' or type == 'lb-server':
-        groups = conn.get_all_security_groups(groupnames=['app-sg'])
-        if groups:
-            return groups[0]
-        grp = conn.create_security_group('app-sg', 'security group for app-server')
-        grp.authorize('tcp', 80, 80, '0.0.0.0/0')
-        grp.authorize('tcp', 22, 22, '0.0.0.0/0')
 
-    elif type == 'db-server' or type == 'slave_db':
-        groups = conn.get_all_security_groups(groupnames=['db-sg'])
-        if groups:
-            return groups[0]
-        grp = conn.create_security_group('db-sg', 'security group for db-server')
-        grp.authorize('tcp', 22, 22, '0.0.0.0/0')
-        # grp.authorize('tcp', 6432, 6432, '0.0.0.0/0')
-    return grp
+    name = 'create_sg'
+    serial = True
+
+    def run(self, **kwargs):
+        conn = get_ec2_connection()
+
+        try:
+            app_grps = conn.get_all_security_groups(groupnames = ['app-sg'])
+            app_grp = app_grps[0]
+        except:
+            app_grp = conn.create_security_group('app-sg',
+                                             'security group for app-server')
+            app_grp.authorize('tcp', 80, 80, '0.0.0.0/0')
+            app_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
+            app_grp.authorize('tcp', 0, 65535, src_group=app_grp)
+
+        try:
+            db_grps = conn.get_all_security_groups(groupnames = ['db-sg'])
+            db_grp = db_grps[0]
+        except:
+            db_grp = conn.create_security_group('db-sg',
+                                             'security group for db-server')
+            db_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
+            db_grp.authorize('tcp', 5432, 5432, src_group=app_grp) #native pgsql
+            db_grp.authorize('tcp', 6432, 6432, src_group=app_grp) #pgbouncer
 
 
 class New(Task):
@@ -159,8 +148,14 @@ class New(Task):
             print "I don't know how to add a %s server" % type
             sys.exit()
 
-        key_name = env.config_object.get('amazon-aws', env.config_object.EC2_KEY)
-        key_file = env.config_object.get('amazon-aws', env.config_object.EC2_KEY_FILE)
+        select = kwargs.get('select_instance_type')
+        if select:
+            instance_type = select_instance_type()
+
+        key_name = env.config_object.get('amazon-aws',
+                                         env.config_object.EC2_KEY)
+        key_file = env.config_object.get('amazon-aws',
+                                         env.config_object.EC2_KEY_FILE)
         if not key_name:
             print "Sorry. You need to create key pair with create_key first."
             sys.exit()
@@ -171,12 +166,15 @@ class New(Task):
             sys.exit()
 
         image = conn.get_image(ami_id)
-        security_group = get_or_create_security_group(conn, type)
+        security_group = get_security_group(conn, type)
+
+        name = functions.get_remote_name(None, task.config_section,
+                                         name=kwargs.get('name'))
         SERVER = {
             'image_id':         image.id,
             'instance_type':    instance_type,
             'security_groups':  [security_group],
-            'key_name':         key_name, }
+            'key_name':         key_name,}
 
         reservation = conn.run_instances(**SERVER)
         print reservation
@@ -185,22 +183,26 @@ class New(Task):
         while instance.state != 'running':
             time.sleep(5)
             instance.update()
-            print "instance state: %s" % (instance.state)
+            print "...instance state: %s" % (instance.state)
 
-        static_ip = kwargs.get('static_ip', 'True')
-        if static_ip == 'True':
-            elastic_ip = conn.allocate_address()
-            print "Elastic IP %s allocated" % elastic_ip
-            elastic_ip.associate(instance.id)
+        conn.create_tags([instance.id], {"Name": name})
 
-        print "EC2 instance is successfully created."
-        print "Using image %s" % image.name
-        print "Added into security group %s" %security_group.name
-        print "id: %s" % instance.id
-        print "IP: %s" % instance.ip_address
+        elastic_ip = conn.allocate_address()
+        print "...Elastic IP %s allocated" % elastic_ip
+        elastic_ip.associate(instance.id)
 
-        execute(setup_name, name=name, hosts=[host_strong])
+        print "...EC2 instance is successfully created."
+        print "..."
+        print "...Using image: %s" % image.name
+        print "...Added into security group: %s" %security_group.name
+        print "...id: %s" % instance.id
+        print "...IP: %s" % elastic_ip
+
+        local('ssh ubuntu@%s sudo apt-get update' % elastic_ip)
+
+        # execute(setup_name, name=name, hosts=[host_strong])
 
 
 create_key = CreateKeyPair()
+create_sg = CreateSecurityGroup()
 add_server = New()

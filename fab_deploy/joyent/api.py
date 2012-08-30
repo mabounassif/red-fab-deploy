@@ -17,16 +17,16 @@ class New(Task):
 
     Uses the joyent API for provisioning a new server. In order
     to run this task your fabfile must contain a line like:
-    
+
     ``joyent_account = 'account_name'``
 
     Takes the following arguments:
 
     * **dataset**: The name of the joyent data set you want to use.
              Defaults to Small 1GB.
-             
+
     * **server_size**: The size server you want. Defaults to smartos64.
-    
+
     * **type**: Required. The type of server you are provisioning. This
           should correspond to a setup task. If no such task is
           found an error will be raised.

@@ -34,7 +34,7 @@ class NginxInstall(Task):
         self._setup_config(nginx_conf=nginx_conf)
 
     def _install_package(self):
-        sudo("apt-get install nginx")
+        sudo("apt-get -y install nginx")
 
     def _setup_dirs(self):
         sudo('mkdir -p /var/www/cache-tmp')

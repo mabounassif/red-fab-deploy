@@ -2,7 +2,7 @@ import sys
 
 import boto
 
-from fabric.api import task, run, execute
+from fabric.api import task, run, env
 
 @task
 def get_ip(interface, hosts=[]):
@@ -57,19 +57,42 @@ def select_instance_type():
 def get_security_group(conn, type):
     """
     create security group if it does not exist
+
+    Two security groups will be created.  app-sg and db-sg.
+
+    app-sg will enable access to ports 80 and 22 from everywhere.
+    instances belong to this group can access each other freely, because there
+    may be other services (for example, cache) require some ports open.
+
+    db-sg has only port 5432 and 6432 open to instances in app-sg and db-sg.
+
+    please use internal ips in your django settings files when specifying
+    database settings.
     """
+
     if type == 'app_server' or type == 'lb_server':
         try:
             groups = conn.get_all_security_groups(groupnames=['app-sg'])
             return groups[0]
         except:
-            print "Cannot find security group. Now creating it..."
-            execute('api.create_sg')
+            app_grp = conn.create_security_group('app-sg',
+                                             'security group for app-server')
+            app_grp.authorize('tcp', 80, 80, '0.0.0.0/0')
+            app_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
+            app_grp.authorize('tcp', 0, 65535, src_group=app_grp)
+            return app_grp
 
     elif type == 'db_server' or type == 'slave_db':
         try:
             groups = conn.get_all_security_groups(groupnames=['db-sg'])
             return groups[0]
         except:
-            print "Cannot find security group. Now creating it..."
-            execute('api.create_sg')
+            db_grp = conn.create_security_group('db-sg',
+                                             'security group for db-server')
+            db_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
+            #allow access from app and db servers on port 5432 and 6432
+            db_grp.authorize('tcp', 5432, 5432, src_group=app_grp)
+            db_grp.authorize('tcp', 6432, 6432, src_group=app_grp)
+            db_grp.authorize('tcp', 5432, 5432, src_group=db_grp)
+            db_grp.authorize('tcp', 6432, 6432, src_group=db_grp)
+            return db_grp

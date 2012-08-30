@@ -42,6 +42,7 @@ def setup_env(project_path):
     # Setup fabric env
     env.deploy_path = os.path.join(project_path, 'deploy')
     env.project_path = project_path
+    env.project_name = os.path.basename(env.project_path)
     env.git_repo_name = GIT_REPO_NAME
     env.git_working_dir = GIT_WORKING_DIR
 

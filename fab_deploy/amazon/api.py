@@ -2,14 +2,17 @@
 import os, sys
 import time
 import boto
+from boto import ec2
+from boto.ec2 import elb
 from boto.ec2.connection import EC2Connection
+from boto.ec2.elb import HealthCheck
 
 from fabric.api import env, execute, local
 from fabric.tasks import Task
 
 from fab_deploy import functions
 
-from utils import get_security_group, select_instance_type
+from utils import  get_security_group, select_instance_type
 
 
 DEFAULT_AMI     = 'ami-5965401c' # ubuntu 12.04 x86_64
@@ -17,22 +20,33 @@ DEFAULT_INSTANCE_TYPE = 'm1.medium'
 DEFAULT_REGION  = 'us-west-1'
 
 
-def get_ec2_connection(aws_access_key, aws_secret_key):
+def get_ec2_connection(server_type, **kwargs):
     """
     create a connection to aws.
     aws_access_key and aws_secret_key should be defined in fabfile.
     """
+
+    aws_access_key = kwargs.get('aws_access_key', env.get('aws_access_key'))
+    aws_secret_key = kwargs.get('aws_secret_key', env.get('aws_secret_key'))
+
     if not aws_access_key or not aws_secret_key:
         print "You must specify your amazon aws credentials to your env."
         sys.exit()
 
-    if not env.get('region'):
+    region = kwargs.get('region', env.get('region'))
+    if not region:
         region = DEFAULT_REGION
 
-    conn = boto.ec2.connect_to_region(region,
-                                      aws_access_key_id=aws_access_key,
-                                      aws_secret_access_key=aws_secret_key)
-    return conn
+    if server_type == 'ec2':
+        conn = ec2.connect_to_region(region,
+                                          aws_access_key_id=aws_access_key,
+                                          aws_secret_access_key=aws_secret_key)
+        return conn
+    elif server_type == 'elb':
+        conn = elb.connect_to_region(region,
+                                     aws_access_key_id=aws_access_key,
+                                     aws_secret_access_key=aws_secret_key)
+        return conn
 
 
 class CreateKeyPair(Task):
@@ -50,7 +64,7 @@ class CreateKeyPair(Task):
     section = 'amazon-aws'
 
     def run(self, **kwargs):
-        conn = get_ec2_connection()
+        conn = get_ec2_connection(server_type='ec2', **kwargs)
         sys.stdout.write("Please give a name to the key: ")
 
         key_dir = os.path.join(env.project_path, 'deploy')
@@ -83,58 +97,6 @@ class CreateKeyPair(Task):
         local('ssh-add %s' %key_file)
 
 
-class CreateSecurityGroup(Task):
-    """
-    Set up security policy
-
-    Two security groups will be created.  app-sg and db-sg.
-
-    app-sg will enable access to ports 80 and 22 from everywhere.
-    instances belong to this group can access each other freely, because there
-    may be other services (for example, cache) require some ports open.
-
-    db-sg has only port 5432 and 6432 open to instances in app-sg and db-sg.
-
-    please use internal ips in your django settings files when specifying
-    database settings.
-    """
-
-    name = 'create_sg'
-    serial = True
-
-    def run(self, **kwargs):
-
-        aws_access_key = kwargs.get('aws_access_key', env.get('aws_access_key'))
-        aws_secret_key = kwargs.get('aws_secret_key', env.get('aws_secret_key'))
-        if not aws_access_key or not aws_secret_key:
-            print "You must give aws_access_key and aws_secret_key to continue"
-            sys.exit()
-        conn = get_ec2_connection(aws_access_key, aws_secret_key)
-
-        try:
-            app_grps = conn.get_all_security_groups(groupnames = ['app-sg'])
-            app_grp = app_grps[0]
-        except:
-            app_grp = conn.create_security_group('app-sg',
-                                             'security group for app-server')
-            app_grp.authorize('tcp', 80, 80, '0.0.0.0/0')
-            app_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
-            app_grp.authorize('tcp', 0, 65535, src_group=app_grp)
-
-        try:
-            db_grps = conn.get_all_security_groups(groupnames = ['db-sg'])
-            db_grp = db_grps[0]
-        except:
-            db_grp = conn.create_security_group('db-sg',
-                                             'security group for db-server')
-            db_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
-            #allow access from app and db servers on port 5432 and 6432 (pgbouncer)
-            db_grp.authorize('tcp', 5432, 5432, src_group=app_grp)
-            db_grp.authorize('tcp', 6432, 6432, src_group=app_grp)
-            db_grp.authorize('tcp', 5432, 5432, src_group=db_grp)
-            db_grp.authorize('tcp', 6432, 6432, src_group=db_grp)
-
-
 class New(Task):
     """
     Provisions and set up a new amazon AWS EC2 instance
@@ -148,6 +110,7 @@ class New(Task):
                 select instance type by yourself.
     static_ip:  by default, an elastic static ip will be allocated and
                 associated with the created instance.  Use 'no' to disable it.
+    region:     default is us-west-1
     """
 
     name = 'add_server'
@@ -155,18 +118,12 @@ class New(Task):
 
     def run(self, **kwargs):
         assert not env.hosts
-
-        aws_access_key = kwargs.get('aws_access_key', env.get('aws_access_key'))
-        aws_secret_key = kwargs.get('aws_secret_key', env.get('aws_secret_key'))
-        if not aws_access_key or not aws_secret_key:
-            print "You must give aws_access_key and aws_secret_key to continue"
-            sys.exit()
-        conn = get_ec2_connection(aws_access_key, aws_secret_key)
+        conn = get_ec2_connection(server_type='ec2', **kwargs)
 
         type = kwargs.get('type')
         setup_name = 'setup.%s' % type
 
-        if kwargs.get('select_instance_type').lower() = 'yes':
+        if kwargs.get('select_instance_type', '').lower() == 'yes':
             instance_type = select_instance_type()
         else:
             instance_type = DEFAULT_INSTANCE_TYPE
@@ -186,7 +143,7 @@ class New(Task):
             sys.exit()
 
         key_name = env.config_object.get('amazon-aws',
-                                         env.config_object.EC2_KEY)
+                                         env.config_object.EC2_KEY_NAME)
         key_file = env.config_object.get('amazon-aws',
                                          env.config_object.EC2_KEY_FILE)
         if not key_name:
@@ -220,7 +177,7 @@ class New(Task):
 
         conn.create_tags([instance.id], {"Name": name})
 
-        if kwargs.get('static_ip').lower() = 'no':
+        if kwargs.get('static_ip', '').lower() == 'no':
             ip = instance.ip_address
         else:
             elastic_ip = conn.allocate_address()
@@ -241,6 +198,89 @@ class New(Task):
         execute(setup_name, name=name, hosts=[host_strong])
 
 
+class LBSetup(Task):
+    """
+    Set up a load balancer
+
+    Create a elastic load balancer, read connections info from server.ini,
+    get ip address and look for corresponding ec2 instances, and finally
+    register the instances with load balancer.
+
+    you may define
+        lb_name:    name of load_balancer
+        listeners:  listeners of load balancer, a list of tuple
+                    (lb port, instance port, protocol).
+        hc_policy:  a dictionary defining the health check policy, keys can be
+                    interval, target, healthy_threshold, timeout
+                    and unhealthy_threshold
+
+    """
+
+    name = 'update_lb'
+
+    hc_policy = {
+                'interval': 30,
+                'target':   'HTTP:80/index.html', }
+
+    listeners =  [(80, 80, 'http',)]
+
+    def get_instance_id_by_ip(self, ip, **kwargs):
+        """
+        get ec2 instance id based on ip address
+        """
+        instances = []
+        conn = get_ec2_connection(server_type='ec2', **kwargs)
+        reservations = conn.get_all_instances()
+        for resv in reservations:
+            for instance in resv.instances:
+                if instance.ip_address == ip:
+                    instances.append(instance.id)
+        return instances
+
+    def get_elb(self, conn, lb_name):
+        lbs = conn.get_all_load_balancers()
+        for lb in lbs:
+            if lb.name == lb_name:
+                return lb
+        return None
+
+    def run(self, section, **kwargs):
+        conn = get_ec2_connection(server_type='ec2', **kwargs)
+        elb_conn = get_ec2_connection(server_type='elb', **kwargs)
+
+        zones = [ z.name for z in conn.get_all_zones()]
+
+        lb_name = env.get('lb_name')
+        if not lb_name:
+            lb_name = env.project_name
+
+        listeners = env.get('listeners')
+        if not listeners:
+            listeners = self.listeners
+
+        connections = env.config_object.get_list(section,
+                                                 env.config_object.CONNECTIONS)
+        ips = [ ip.split('@')[-1] for ip in connections]
+        for ip in ips:
+            instances = self.get_instance_id_by_ip(ip, **kwargs)
+            if len(instances) == 0:
+                print "Cannot find any ec2 instances match your connections"
+                sys.exit()
+
+        elb = self.get_elb(elb_conn, lb_name)
+        if not elb:
+            elb = elb_conn.create_load_balancer(lb_name, zones, listeners)
+
+        elb.register_instances(instances)
+        hc_policy = env.get('hc_policy')
+        if not hc_policy:
+            hc_policy = self.hc_policy
+        hc = HealthCheck(**hc_policy)
+        elb.configure_health_check(hc)
+
+        print "load balancer %s successfully created" %lb_name
+
+
 create_key = CreateKeyPair()
-create_sg = CreateSecurityGroup()
 add_server = New()
+update_lb = LBSetup()

@@ -4,6 +4,7 @@ from fabric.tasks import Task
 
 from fab_deploy import functions
 
+from api import get_ec2_connection
 import utils
 
 
@@ -54,26 +55,29 @@ class BaseSetup(Task):
         sudo('service ssh restart')
 
 
-class LBSetup(BaseSetup):
+class AppSetup(BaseSetup):
     """
-    Setup a load balancer
+    Setup a app-server
 
     After base setup installs nginx setups a git repo. Then
     calls the deploy task.
 
-    Once finished it calls ``nginx.update_allowed_ips``
+    Also installs gunicorn, python, and other base packages.
+    Runs the scripts/setup.sh script.
+
+    Once finished it add the new instance into load balancer
 
     This is a serial task as it modifies local config files.
     """
 
-    name = 'lb_server'
+    name = 'app_server'
 
-    config_section = 'load-balancer'
+    config_section = 'app-server'
+
+    nginx_conf = 'nginx/nginx.conf'
 
     git_branch = 'master'
     git_hook = None
-
-    nginx_conf = 'nginx/nginx-lb.conf'
 
     def _add_remote(self, name=None):
         if not env.host_string in env.git_reverse:
@@ -83,17 +87,29 @@ class LBSetup(BaseSetup):
                                     user_and_host=env.host_string)
         return name
 
-    def _install_packages(self):
-        pass
-
-    def _modify_others(self):
-        task = functions.get_task_instance('setup.app_server')
-        execute('nginx.update_allowed_ips', nginx_conf=task.nginx_conf,
-                            section=self.config_section)
-
     def _transfer_files(self):
         execute('git.setup', branch=self.git_branch, hook=self.git_hook)
         execute('local.git.push', branch=self.git_branch)
+
+    def _modify_others(self):
+        execute('api.update_lb', section=self.config_section)
+
+    def _install_packages(self):
+        sudo('apt-get -y install python-psycopg2')
+        sudo('apt-get -y install python-setuptools')
+        sudo('apt-get -y install python-imaging')
+        sudo('apt-get -y install python-pip')
+        self._install_venv()
+
+    def _install_venv(self):
+        sudo('pip install virtualenv')
+        run('sh %s/scripts/setup.sh production' % env.git_working_dir)
+
+    def _setup_services(self):
+        execute('nginx.setup', nginx_conf=self.nginx_conf)
+        sudo('service nginx restart')
+        execute('gunicorn.setup')
+        sudo('supervisorctl start gunicorn')
 
     def run(self, name=None):
         self._update_config(self.config_section)
@@ -112,51 +128,6 @@ class LBSetup(BaseSetup):
         execute('deploy', branch=self.git_branch)
 
         self._modify_others()
-
-    def _setup_services(self):
-        execute('nginx.setup', nginx_conf=self.nginx_conf)
-        sudo('service nginx restart')
-
-
-class AppSetup(LBSetup):
-    """
-    Setup a app-server
-
-    Inherits from lb_setup so does everything it does.
-    Also installs gunicorn, python, and other base packages.
-    Runs the scripts/setup.sh script.
-
-    Once finished it calls ``nginx.update_app_servers``
-
-    This is a serial task as it modifies local config files.
-    """
-
-    name = 'app_server'
-
-    config_section = 'app-server'
-
-    nginx_conf = 'nginx/nginx.conf'
-
-    def _modify_others(self):
-        task = functions.get_task_instance('setup.lb_server')
-        execute('nginx.update_app_servers', nginx_conf=task.nginx_conf,
-                        section=self.config_section)
-
-    def _install_packages(self):
-        sudo('apt-get -y install python-psycopg2')
-        sudo('apt-get -y install python-setuptools')
-        sudo('apt-get -y install python-imaging')
-        sudo('apt-get -y install python-pip')
-        self._install_venv()
-
-    def _install_venv(self):
-        sudo('pip install virtualenv')
-        run('sh %s/scripts/setup.sh production' % env.git_working_dir)
-
-    def _setup_services(self):
-        super(AppSetup, self)._setup_services()
-        execute('gunicorn.setup')
-        sudo('supervisorctl start gunicorn')
 
 
 class DBSetup(BaseSetup):
@@ -233,8 +204,8 @@ class DevSetup(AppSetup):
         super(DevSetup, self)._setup_services()
         execute('postgres.master_setup')
 
+
 app_server = AppSetup()
-lb_server = LBSetup()
 dev_server = DevSetup()
 db_server = DBSetup()
 slave_db = SlaveSetup()

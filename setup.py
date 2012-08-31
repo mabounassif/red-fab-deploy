@@ -36,7 +36,7 @@ setup(
 		'fab_deploy.joyent',
 		'fab_deploy.local',
 		],
-	version = 'v0.0.3',
+	version = 'v0.0.4',
     author='RED Interactive Agency',
     author_email='geeks@ff0000.com',
 

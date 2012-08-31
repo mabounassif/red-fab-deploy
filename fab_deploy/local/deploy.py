@@ -1,3 +1,4 @@
+import os
 from fabric.api import local, env, execute
 from fabric.tasks import Task
 from fabric.context_managers import settings, hide

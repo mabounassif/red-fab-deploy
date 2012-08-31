@@ -10,6 +10,8 @@ from fabric.tasks import Task
 
 from fab_deploy.functions import random_password
 
+import utils
+
 
 class PostgresInstall(Task):
     """
@@ -128,14 +130,15 @@ class PostgresInstall(Task):
             if exists(history_file):
                 sudo('rm %s' % history_file)
 
+            env.config_object.set('db-server', env.config_object.REPLICATOR,
+                                  'replicator')
+            env.config_object.set('db-server',
+                                  env.config_object.REPLICATOR_PASS,
+                                  replicator_pass)
             return replicator_pass
         else:
             print "user replicator already exists, skipping creating user."
 
-            env.config_object.set('db-server', env.config_object.REPLICATOR,
-                                  'replicator')
-            env.config_object.set('db-server', env.config_object.REPLICATOR_PASS,
-                                  replicator_pass)
 
     def run(self, db_version=None, encrypt=None, save_config=True, **kwargs):
         """
@@ -150,7 +153,9 @@ class PostgresInstall(Task):
             encrypt = self.encrypt
 
         sudo("apt-get -y install postgresql")
+        sudo("apt-get -y install postgresql-contrib")
         sudo("service postgresql start")
+        archive_dir = self._setup_archive_dir(data_dir)
         self.postgres_config['archive_command'] = ("'cp %s %s/wal_archive/%s'"
                                                    % ('%p', data_dir, '%f'))
 
@@ -190,7 +195,7 @@ class SlaveSetup(PostgresInstall):
                                              env.config_object.REPLICATOR_PASS)
         return password[0]
 
-    def _setup_recovery_conf(self, master_ip, password, data_dir):
+    def _setup_recovery_conf(self, master_ip, password, data_dir, psql_bin):
         wal_dir = os.path.join(data_dir, 'wal_archive')
         recovery_conf = os.path.join(data_dir, 'recovery.conf')
 
@@ -200,8 +205,8 @@ class SlaveSetup(PostgresInstall):
                 ("trigger_file = '/tmp/pgsql.trigger'\n") +
                 ("restore_command = 'cp -f %s/%s </dev/null'\n"
                     % (wal_dir, '%f %p')) +
-                ("archive_cleanup_command = 'pg_archivecleanup %s %s'\n"
-                    % (wal_dir, "%r")))
+                ("archive_cleanup_command = '%s/pg_archivecleanup %s %s'\n"
+                    % (psql_bin, wal_dir, "%r")))
 
         sudo('touch %s' % recovery_conf)
         append(recovery_conf, txts, use_sudo=True)
@@ -236,16 +241,19 @@ class SlaveSetup(PostgresInstall):
         db_version = self._get_master_db_version(master=master)
         data_dir = self._get_data_dir(db_version)
         config_dir = self._get_config_dir(db_version)
+        psql_bin = os.path.join('/usr/lib/postgresql', '%s' %db_version, 'bin')
         slave = env.host_string
         slave_ip = slave.split('@')[1]
 
         sudo("apt-get -y install postgresql")
+        sudo("apt-get -y install postgresql-contrib")
         sudo('service postgresql stop')
 
         self._setup_ssh_key()
         self._ssh_key_exchange(master, slave)
 
         with settings(host_string=master):
+            master_internal_ip = run(utils.get_ip_command('eth0'))
 
             run('echo "select pg_start_backup(\'backup\', true)" | sudo su postgres -c \'psql\'')
             run('sudo su postgres -c "rsync -av --exclude postmaster.pid '
@@ -259,8 +267,10 @@ class SlaveSetup(PostgresInstall):
         self._setup_archive_dir(data_dir)
 
         replicator_pass = self._get_replicator_pass()
-        self._setup_recovery_conf(master_ip=master_ip,
-                                  password=replicator_pass, data_dir=data_dir)
+        self._setup_recovery_conf(master_ip=master_internal_ip,
+                                  password=replicator_pass,
+                                  data_dir=data_dir,
+                                  psql_bin_path=psql_bin_path)
 
         if not encrypt:
             encrypt = self.encrypt
@@ -268,6 +278,17 @@ class SlaveSetup(PostgresInstall):
 
         sudo('service postgresql start')
         print('password for replicator on master node is %s' % replicator_pass)
+
+        log_dir = '/var/log/postgresql/postgresql-%s-main.log' %db_version
+        log = run('tail -5 %s' %log_dir)
+        if ('streaming replication successfully connected' in log and
+            'database system is ready to accept read only connections' in log):
+            print "streaming replication set up is successful"
+        else:
+            print ("something unexpected occured. streaming replication is not"
+                   " successful. please check all configuration and fix it.")
+
+
 
 
 class PGBouncerInstall(Task):
@@ -347,6 +368,8 @@ class PGBouncerInstall(Task):
         sudo('chown postgres:postgres /var/log/pgbouncer')
 
         # start pgbouncer
+        pgbouncer_control_file = '/etc/default/pgbouncer'
+        sudo("sed -i 's/START=0/START=1/' %s" %pgbouncer_control_file)
         sudo('service pgbouncer start')
 
 setup = PostgresInstall()

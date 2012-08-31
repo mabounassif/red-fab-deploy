@@ -70,29 +70,34 @@ def get_security_group(conn, type):
     database settings.
     """
 
-    if type == 'app_server' or type == 'lb_server':
-        try:
-            groups = conn.get_all_security_groups(groupnames=['app-sg'])
-            return groups[0]
-        except:
-            app_grp = conn.create_security_group('app-sg',
+    try:
+        app_groups = conn.get_all_security_groups(groupnames=['app-sg'])
+        app_grp = app_groups[0]
+        print "got security group app-sg"
+    except:
+        app_grp = conn.create_security_group('app-sg',
                                              'security group for app-server')
-            app_grp.authorize('tcp', 80, 80, '0.0.0.0/0')
-            app_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
-            app_grp.authorize('tcp', 0, 65535, src_group=app_grp)
-            return app_grp
+        print "creating security group app-sg"
+        app_grp.authorize('tcp', 80, 80, '0.0.0.0/0')
+        app_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
+        app_grp.authorize('tcp', 0, 65535, src_group=app_grp)
 
+    try:
+        db_groups = conn.get_all_security_groups(groupnames=['db-sg'])
+        db_grp = db_groups[0]
+        print "got security group db-sg"
+    except:
+        db_grp = conn.create_security_group('db-sg',
+                                            'security group for db-server')
+        print "creating security group db-sg"
+        db_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
+        #allow access from app and db servers on port 5432 and 6432
+        db_grp.authorize('tcp', 5432, 5432, src_group=app_grp)
+        db_grp.authorize('tcp', 6432, 6432, src_group=app_grp)
+        db_grp.authorize('tcp', 5432, 5432, src_group=db_grp)
+        db_grp.authorize('tcp', 6432, 6432, src_group=db_grp)
+
+    if type == 'app_server' or type == 'lb_server':
+        return app_grp
     elif type == 'db_server' or type == 'slave_db':
-        try:
-            groups = conn.get_all_security_groups(groupnames=['db-sg'])
-            return groups[0]
-        except:
-            db_grp = conn.create_security_group('db-sg',
-                                             'security group for db-server')
-            db_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
-            #allow access from app and db servers on port 5432 and 6432
-            db_grp.authorize('tcp', 5432, 5432, src_group=app_grp)
-            db_grp.authorize('tcp', 6432, 6432, src_group=app_grp)
-            db_grp.authorize('tcp', 5432, 5432, src_group=db_grp)
-            db_grp.authorize('tcp', 6432, 6432, src_group=db_grp)
-            return db_grp
+        return db_grp

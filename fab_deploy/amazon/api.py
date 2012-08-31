@@ -23,7 +23,8 @@ DEFAULT_REGION  = 'us-west-1'
 def get_ec2_connection(server_type, **kwargs):
     """
     create a connection to aws.
-    aws_access_key and aws_secret_key should be defined in fabfile.
+    aws_access_key and aws_secret_key should be defined in fabfile,
+    or given at the command line
     """
 
     aws_access_key = kwargs.get('aws_access_key', env.get('aws_access_key'))
@@ -56,6 +57,9 @@ class CreateKeyPair(Task):
     This key will be stored under  $PROJECT_ROOT/deploy/ directory and
     registered in server.ini file. You will need it to access all the
     instances created with it.
+
+    * **aws_access_key**:  aws access key id
+    * **aws_secret_key**:  aws secret key
     """
 
     name = 'create_key'
@@ -103,14 +107,23 @@ class New(Task):
 
     You may provide the following parameters through command line.
 
-    type:       server types, can be db_server, app_server, dev_server, slave_db
-    ami_id:     AMI ID
-    select_instance_type:
+    * **aws_access_key**:  aws access key id
+    * **aws_secret_key**:  aws secret key
+
+    * **type**:  Required. server types, can be db_server, app_server,
+                 dev_server, or slave_db
+
+    * **ami_id**: AMI ID
+
+    * **select_instance_type**:  'yes' or 'no'
                 by default, m1.medium will be used. Use 'yes' to
                 select instance type by yourself.
-    static_ip:  by default, an elastic static ip will be allocated and
-                associated with the created instance.  Use 'no' to disable it.
-    region:     default is us-west-1
+
+    * **static_ip**: 'yes' or 'no'
+            by default, an elastic static ip will be allocated and
+            associated with the created instance.  Use 'no' to disable it.
+
+    * **region**:     default is us-west-1
     """
 
     name = 'add_server'
@@ -186,16 +199,17 @@ class New(Task):
             ip = elastic_ip.public_ip
 
         print "...EC2 instance is successfully created."
+        print "...wait 5 seconds for the server to be ready"
+        print "...while waiting, you may want to note down the following info"
+        time.sleep(5)
         print "..."
-        print "...Using image: %s" % image.name
+        print "...Instance using image: %s" % image.name
         print "...Added into security group: %s" %security_group.name
-        print "...id: %s" % instance.id
-        print "...IP: %s" % ip
+        print "...Instance ID: %s" % instance.id
+        print "...Public IP: %s" % ip
 
-        #update apt repository so installation of packages can be smooth
-        local('ssh ubuntu@%s sudo apt-get update' % ip)
-
-        execute(setup_name, name=name, hosts=[host_strong])
+        host_string = 'ubuntu@%s' % ip
+        execute(setup_name, name=name, hosts=[host_string])
 
 
 class LBSetup(Task):
@@ -206,13 +220,15 @@ class LBSetup(Task):
     get ip address and look for corresponding ec2 instances, and finally
     register the instances with load balancer.
 
-    you may define
-        lb_name:    name of load_balancer
-        listeners:  listeners of load balancer, a list of tuple
-                    (lb port, instance port, protocol).
-        hc_policy:  a dictionary defining the health check policy, keys can be
-                    interval, target, healthy_threshold, timeout
-                    and unhealthy_threshold
+    you may define the following optional arguments:
+    * **aws_access_key**:  aws access key id
+    * **aws_secret_key**:  aws secret key
+    * **lb_name**:    name of load_balancer
+    * **listeners**:  listeners of load balancer, a list of tuple
+                (lb port, instance port, protocol).
+    * **hc_policy**:  a dictionary defining the health check policy, keys can be
+                interval, target, healthy_threshold, timeout
+                and unhealthy_threshold
 
     """
 
@@ -237,7 +253,7 @@ class LBSetup(Task):
                     instances.append(instance.id)
         return instances
 
-    def get_elb(self, conn, lb_name):
+    def _get_elb(self, conn, lb_name):
         lbs = conn.get_all_load_balancers()
         for lb in lbs:
             if lb.name == lb_name:
@@ -267,18 +283,23 @@ class LBSetup(Task):
                 print "Cannot find any ec2 instances match your connections"
                 sys.exit()
 
-        elb = self.get_elb(elb_conn, lb_name)
+        elb = self._get_elb(elb_conn, lb_name)
+        print "find load balancer %s" %lb_name
         if not elb:
             elb = elb_conn.create_load_balancer(lb_name, zones, listeners)
+            print "load balancer %s successfully created" %lb_name
 
         elb.register_instances(instances)
+        print "register instances into load balancer"
+        print instances
+
         hc_policy = env.get('hc_policy')
         if not hc_policy:
             hc_policy = self.hc_policy
+        print "Configure load balancer health check policy"
+        print hc
         hc = HealthCheck(**hc_policy)
         elb.configure_health_check(hc)
-
-        print "load balancer %s successfully created" %lb_name
 
 
 create_key = CreateKeyPair()

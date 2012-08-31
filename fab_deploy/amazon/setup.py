@@ -12,8 +12,6 @@ class BaseSetup(Task):
     """
     Base server setup.
 
-    Installs ipfilter and adds firewall config
-
     Sets up ssh so root cannot login and other logins must
     be key based.
     """

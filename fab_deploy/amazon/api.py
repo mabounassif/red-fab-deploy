@@ -216,19 +216,9 @@ class New(Task):
 
 class UpdateSecurityGroup(Task):
     """
-    create security group if it does not exist
-
-    Two security groups will be created.  app-sg and db-sg.
-
-    app-sg will enable access to ports 80 and 22 from everywhere.
-    instances belong to this group can access each other freely, because there
-    may be other services (for example, cache) require some ports open.
-
-    db-sg has only port 5432 and 6432 open to instances in app-sg and db-sg.
-
-    please use internal ips in your django settings files when specifying
-    database settings.
+    update security policy based on info from server.ini
     """
+
     name = 'create_sg'
     serial = True
 

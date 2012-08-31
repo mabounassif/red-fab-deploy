@@ -56,48 +56,23 @@ def select_instance_type():
 
 def get_security_group(conn, type):
     """
-    create security group if it does not exist
-
-    Two security groups will be created.  app-sg and db-sg.
-
-    app-sg will enable access to ports 80 and 22 from everywhere.
-    instances belong to this group can access each other freely, because there
-    may be other services (for example, cache) require some ports open.
-
-    db-sg has only port 5432 and 6432 open to instances in app-sg and db-sg.
-
-    please use internal ips in your django settings files when specifying
-    database settings.
+    Get security group according to server type.
+    If not exists, create one and return it
     """
 
+    dict = {
+        'app_server':   'app-sg',
+        'dev_sever':    'dev-sg',
+        'db_server':    'db-sg',
+        'slave_db':     'db-sg',
+    }
+
+    sg_name = dict.get(type)
     try:
-        app_groups = conn.get_all_security_groups(groupnames=['app-sg'])
-        app_grp = app_groups[0]
-        print "got security group app-sg"
+        groups = conn.get_all_security_groups(groupnames=[sg_name])
+        return groups[0]
     except:
-        app_grp = conn.create_security_group('app-sg',
+        grp = conn.create_security_group(sg_name,
                                              'security group for app-server')
-        print "creating security group app-sg"
-        app_grp.authorize('tcp', 80, 80, '0.0.0.0/0')
-        app_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
-        app_grp.authorize('tcp', 0, 65535, src_group=app_grp)
-
-    try:
-        db_groups = conn.get_all_security_groups(groupnames=['db-sg'])
-        db_grp = db_groups[0]
-        print "got security group db-sg"
-    except:
-        db_grp = conn.create_security_group('db-sg',
-                                            'security group for db-server')
-        print "creating security group db-sg"
-        db_grp.authorize('tcp', 22, 22, '0.0.0.0/0')
-        #allow access from app and db servers on port 5432 and 6432
-        db_grp.authorize('tcp', 5432, 5432, src_group=app_grp)
-        db_grp.authorize('tcp', 6432, 6432, src_group=app_grp)
-        db_grp.authorize('tcp', 5432, 5432, src_group=db_grp)
-        db_grp.authorize('tcp', 6432, 6432, src_group=db_grp)
-
-    if type == 'app_server' or type == 'lb_server':
-        return app_grp
-    elif type == 'db_server' or type == 'slave_db':
-        return db_grp
+        grp.authorize('tcp', 22, 22, '0.0.0.0/0')
+        return grp

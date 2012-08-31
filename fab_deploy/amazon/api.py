@@ -93,6 +93,8 @@ class CreateKeyPair(Task):
                 key.save(key_dir)
                 break
 
+        if not env.config_object.has_section(self.section):
+            env.config_object.add_section(self.section)
         env.config_object.set(self.section,
                               env.config_object.EC2_KEY_NAME, key.name)
         env.config_object.set(self.section,
@@ -212,96 +214,82 @@ class New(Task):
         execute(setup_name, name=name, hosts=[host_string])
 
 
-class LBSetup(Task):
+class UpdateSecurityGroup(Task):
     """
-    Set up a load balancer
+    create security group if it does not exist
 
-    Create a elastic load balancer, read connections info from server.ini,
-    get ip address and look for corresponding ec2 instances, and finally
-    register the instances with load balancer.
+    Two security groups will be created.  app-sg and db-sg.
 
-    you may define the following optional arguments:
-    * **aws_access_key**:  aws access key id
-    * **aws_secret_key**:  aws secret key
-    * **lb_name**:    name of load_balancer
-    * **listeners**:  listeners of load balancer, a list of tuple
-                (lb port, instance port, protocol).
-    * **hc_policy**:  a dictionary defining the health check policy, keys can be
-                interval, target, healthy_threshold, timeout
-                and unhealthy_threshold
+    app-sg will enable access to ports 80 and 22 from everywhere.
+    instances belong to this group can access each other freely, because there
+    may be other services (for example, cache) require some ports open.
 
+    db-sg has only port 5432 and 6432 open to instances in app-sg and db-sg.
+
+    please use internal ips in your django settings files when specifying
+    database settings.
     """
+    name = 'create_sg'
+    serial = True
 
-    name = 'update_lb'
+    dict = {
+        'app-server':   'app_server',
+        'dev-sever':    'dev_server',
+        'db-server':    'db_server',
+        'slave-db':     'slave_db'
+    }
 
-    hc_policy = {
-                'interval': 30,
-                'target':   'HTTP:80/index.html', }
-
-    listeners =  [(80, 80, 'http',)]
-
-    def get_instance_id_by_ip(self, ip, **kwargs):
-        """
-        get ec2 instance id based on ip address
-        """
-        instances = []
-        conn = get_ec2_connection(server_type='ec2', **kwargs)
-        reservations = conn.get_all_instances()
-        for resv in reservations:
-            for instance in resv.instances:
-                if instance.ip_address == ip:
-                    instances.append(instance.id)
-        return instances
-
-    def _get_elb(self, conn, lb_name):
-        lbs = conn.get_all_load_balancers()
-        for lb in lbs:
-            if lb.name == lb_name:
-                return lb
-        return None
-
-    def run(self, section, **kwargs):
-        conn = get_ec2_connection(server_type='ec2', **kwargs)
+    def _get_lb_sg(self, **kwargs):
         elb_conn = get_ec2_connection(server_type='elb', **kwargs)
+        elb = elb_conn.get_all_load_balancers()[0]
+        return elb.source_security_group
 
-        zones = [ z.name for z in conn.get_all_zones()]
+    def run(self, section=None, **kwargs):
+        conf = env.config_object
+        conn = get_ec2_connection(server_type='ec2', **kwargs)
 
-        lb_name = env.get('lb_name')
-        if not lb_name:
-            lb_name = env.project_name
+        if section:
+            sections = [section]
+        else:
+            sections = conf.sections()
 
-        listeners = env.get('listeners')
-        if not listeners:
-            listeners = self.listeners
+        for section in sections:
+            if not self.dict.has_key(section):
+                continue
 
-        connections = env.config_object.get_list(section,
-                                                 env.config_object.CONNECTIONS)
-        ips = [ ip.split('@')[-1] for ip in connections]
-        for ip in ips:
-            instances = self.get_instance_id_by_ip(ip, **kwargs)
-            if len(instances) == 0:
-                print "Cannot find any ec2 instances match your connections"
-                sys.exit()
+            host_sg = get_security_group(conn, self.dict.get(section))
 
-        elb = self._get_elb(elb_conn, lb_name)
-        print "find load balancer %s" %lb_name
-        if not elb:
-            elb = elb_conn.create_load_balancer(lb_name, zones, listeners)
-            print "load balancer %s successfully created" %lb_name
+            open_ports = conf.get_list(section, conf.OPEN_PORTS)
+            if open_ports:
+                for port in open_ports:
+                    try:
+                        host_sg.authorize('tcp', port, port, '0.0.0.0/0')
+                    except:
+                        pass
 
-        elb.register_instances(instances)
-        print "register instances into load balancer"
-        print instances
+            restricted_ports = conf.get_list(section, conf.RESTRICTED_PORTS)
+            if restricted_ports:
+                for s in conf.get_list(section, conf.ALLOWED_SECTIONS):
+                    if s == 'load-balancer':
+                        guest_sg = self._get_lb_sg(**kwargs)
+                    else:
+                        guest_sg = get_security_group(conn, self.dict.get(s))
 
-        hc_policy = env.get('hc_policy')
-        if not hc_policy:
-            hc_policy = self.hc_policy
-        print "Configure load balancer health check policy"
-        print hc
-        hc = HealthCheck(**hc_policy)
-        elb.configure_health_check(hc)
+                    for port in restricted_ports:
+                        try:
+                            if s == 'load-balancer':
+                                conn.authorize_security_group(host_sg.name,
+                                      src_security_group_name='amazon-elb-sg',
+                                      src_security_group_owner_id='amazon-elb',
+                                      from_port=port, to_port=port,
+                                      ip_protocol='tcp')
+                            else:
+                                host_sg.authorize('tcp', port, port, src_group=guest_sg)
+
+                        except:
+                            pass
 
 
 create_key = CreateKeyPair()
 add_server = New()
-update_lb = LBSetup()
+update_sg = UpdateSecurityGroup()

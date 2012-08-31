@@ -96,7 +96,7 @@ class AppSetup(BaseSetup):
         execute('local.git.push', branch=self.git_branch)
 
     def _modify_others(self):
-        execute('api.update_lb', section=self.config_section)
+        execute('setup.lb_server', section=self.config_section)
 
     def _install_packages(self):
         sudo('apt-get -y install python-psycopg2')
@@ -184,6 +184,8 @@ class SlaveSetup(DBSetup):
         """
         master = self._get_master()
         self._update_apt()
+        if not env.config_object.has_section(self.config_section):
+            env.config_object.add_section(self.config_section)
         self._update_config(self.config_section)
         self._secure_ssh()
         execute('postgres.slave_setup', master=master)
@@ -210,7 +212,98 @@ class DevSetup(AppSetup):
         execute('postgres.master_setup')
 
 
+class LBSetup(Task):
+    """
+    Set up a load balancer
+
+    Create an elastic load balancer, read connections info from server.ini,
+    get ip address and look for corresponding ec2 instances, and register
+    the instances with load balancer.
+
+    you may define the following optional arguments:
+    * **aws_access_key**:  aws access key id
+    * **aws_secret_key**:  aws secret key
+    * **lb_name**:    name of load_balancer
+    * **listeners**:  listeners of load balancer, a list of tuple
+                (lb port, instance port, protocol).
+    * **hc_policy**:  a dictionary defining the health check policy, keys can be
+                interval, target, healthy_threshold, timeout
+                and unhealthy_threshold
+    """
+
+    name = 'lb_server'
+
+    hc_policy = {
+                'interval': 30,
+                'target':   'HTTP:80/index.html', }
+
+    listeners =  [(80, 80, 'http',)]
+
+    def get_instance_id_by_ip(self, ip, **kwargs):
+        """
+        get ec2 instance id based on ip address
+        """
+        instances = []
+        conn = get_ec2_connection(server_type='ec2', **kwargs)
+        reservations = conn.get_all_instances()
+        for resv in reservations:
+            for instance in resv.instances:
+                if instance.ip_address == ip:
+                    instances.append(instance.id)
+        return instances
+
+    def _get_elb(self, conn, lb_name):
+        lbs = conn.get_all_load_balancers()
+        for lb in lbs:
+            if lb.name == lb_name:
+                return lb
+        return None
+
+    def run(self, section, **kwargs):
+        conn = get_ec2_connection(server_type='ec2', **kwargs)
+        elb_conn = get_ec2_connection(server_type='elb', **kwargs)
+
+        zones = [ z.name for z in conn.get_all_zones()]
+
+        lb_name = env.get('lb_name')
+        if not lb_name:
+            lb_name = env.project_name
+
+        listeners = env.get('listeners')
+        if not listeners:
+            listeners = self.listeners
+
+        connections = env.config_object.get_list(section,
+                                                 env.config_object.CONNECTIONS)
+        ips = [ ip.split('@')[-1] for ip in connections]
+        for ip in ips:
+            instances = self.get_instance_id_by_ip(ip, **kwargs)
+            if len(instances) == 0:
+                print "Cannot find any ec2 instances match your connections"
+                sys.exit()
+
+        elb = self._get_elb(elb_conn, lb_name)
+        print "find load balancer %s" %lb_name
+        if not elb:
+            elb = elb_conn.create_load_balancer(lb_name, zones, listeners,
+                                                security_groups=['lb_sg'])
+            print "load balancer %s successfully created" %lb_name
+
+        elb.register_instances(instances)
+        print "register instances into load balancer"
+        print instances
+
+        hc_policy = env.get('hc_policy')
+        if not hc_policy:
+            hc_policy = self.hc_policy
+        print "Configure load balancer health check policy"
+        print hc
+        hc = HealthCheck(**hc_policy)
+        elb.configure_health_check(hc)
+
+
 app_server = AppSetup()
 dev_server = DevSetup()
 db_server = DBSetup()
 slave_db = SlaveSetup()
+lb_server = LBSetup()

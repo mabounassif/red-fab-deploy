@@ -12,7 +12,7 @@ from fabric.tasks import Task
 
 from fab_deploy import functions
 
-from utils import  get_security_group, select_instance_type
+from utils import  get_security_group
 
 
 DEFAULT_AMI     = 'ami-5965401c' # ubuntu 12.04 x86_64
@@ -138,10 +138,7 @@ class New(Task):
         type = kwargs.get('type')
         setup_name = 'setup.%s' % type
 
-        if kwargs.get('select_instance_type', '').lower() == 'yes':
-            instance_type = select_instance_type()
-        else:
-            instance_type = DEFAULT_INSTANCE_TYPE
+        instance_type = DEFAULT_INSTANCE_TYPE
 
         ami_id = kwargs.get('ami_id')
         if not ami_id:
@@ -171,7 +168,7 @@ class New(Task):
             sys.exit()
 
         image = conn.get_image(ami_id)
-        security_group = get_security_group(conn, type)
+        security_group = get_security_group(conn, task.config_section)
 
         name = functions.get_remote_name(None, task.config_section,
                                          name=kwargs.get('name'))
@@ -214,72 +211,6 @@ class New(Task):
         execute(setup_name, name=name, hosts=[host_string])
 
 
-class UpdateSecurityGroup(Task):
-    """
-    update security policy based on info from server.ini
-    """
-
-    name = 'create_sg'
-    serial = True
-
-    dict = {
-        'app-server':   'app_server',
-        'dev-sever':    'dev_server',
-        'db-server':    'db_server',
-        'slave-db':     'slave_db'
-    }
-
-    def _get_lb_sg(self, **kwargs):
-        elb_conn = get_ec2_connection(server_type='elb', **kwargs)
-        elb = elb_conn.get_all_load_balancers()[0]
-        return elb.source_security_group
-
-    def run(self, section=None, **kwargs):
-        conf = env.config_object
-        conn = get_ec2_connection(server_type='ec2', **kwargs)
-
-        if section:
-            sections = [section]
-        else:
-            sections = conf.sections()
-
-        for section in sections:
-            if not self.dict.has_key(section):
-                continue
-
-            host_sg = get_security_group(conn, self.dict.get(section))
-
-            open_ports = conf.get_list(section, conf.OPEN_PORTS)
-            if open_ports:
-                for port in open_ports:
-                    try:
-                        host_sg.authorize('tcp', port, port, '0.0.0.0/0')
-                    except:
-                        pass
-
-            restricted_ports = conf.get_list(section, conf.RESTRICTED_PORTS)
-            if restricted_ports:
-                for s in conf.get_list(section, conf.ALLOWED_SECTIONS):
-                    if s == 'load-balancer':
-                        guest_sg = self._get_lb_sg(**kwargs)
-                    else:
-                        guest_sg = get_security_group(conn, self.dict.get(s))
-
-                    for port in restricted_ports:
-                        try:
-                            if s == 'load-balancer':
-                                conn.authorize_security_group(host_sg.name,
-                                      src_security_group_name='amazon-elb-sg',
-                                      src_security_group_owner_id='amazon-elb',
-                                      from_port=port, to_port=port,
-                                      ip_protocol='tcp')
-                            else:
-                                host_sg.authorize('tcp', port, port, src_group=guest_sg)
-
-                        except:
-                            pass
-
-
 create_key = CreateKeyPair()
 add_server = New()
-update_sg = UpdateSecurityGroup()
+

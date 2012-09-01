@@ -230,6 +230,7 @@ class LBSetup(Task):
     """
 
     name = 'lb_server'
+    config_section = 'load-balancer'
 
     hc_policy = {
                 'interval': 30,

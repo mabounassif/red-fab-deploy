@@ -1,7 +1,7 @@
 
 import os, sys
 import time
-from fab_deploy.config import CustomConfig
+from ConfigParser import ConfigParser
 
 import boto
 from boto import ec2
@@ -29,14 +29,15 @@ def get_ec2_connection(server_type, **kwargs):
     aws_access_key and aws_secret_key should be defined in $AWS_CREDENTIAL file
     """
 
-    amzn = os.environ.get('AWS_CREDENTIAL', env.get('AWS_CREDENTIAL', ''))
+    amzn = env.get('AWS_CREDENTIAL',
+                   os.path.join(env.deploy_path, 'amazon.ini'))
     if not os.path.exists(amzn):
         print ("Cannot find environment variable AMAZON_CREDENTIALS which should"
                " point to a file with your aws_access_key and aws_secret_key info"
-               " inside. You may specify it through your system env or fab env.")
+               " inside. You may specify it through your fab env.")
         sys.exit()
 
-    parser = CustomConfig()
+    parser = ConfigParser()
     parser.read(amzn)
 
     aws_access_key = parser.get('amazon-aws', 'aws_access_key')
@@ -66,8 +67,8 @@ class CreateKeyPair(Task):
     """
     create an aws key pair
 
-    This key will be stored under the same directory as $AWS_CREDENTIAL and
-    registered in $AWS_CREDENTIAL file. You will need it to access all the
+    This key will be stored under the same directory as env.AWS_CREDENTIAL and
+    registered in env.AWS_CREDENTIAL file. You will need it to access all the
     instances created with it.
 
     """
@@ -81,8 +82,8 @@ class CreateKeyPair(Task):
         conn = get_ec2_connection(server_type='ec2', **kwargs)
         sys.stdout.write("Please give a name to the key: ")
 
-        amzn = os.environ.get('AWS_CREDENTIAL',
-                              env.get('AWS_CREDENTIAL'))
+        amzn = env.get('AWS_CREDENTIAL',
+                       os.path.join(env.deploy_path, 'amazon.ini'))
         key_dir = os.path.dirname(amzn)
         while True:
             key_name = raw_input()
@@ -105,13 +106,15 @@ class CreateKeyPair(Task):
                 key.save(key_dir)
                 break
 
-        parser = CustomConfig()
+        parser = ConfigParser()
         parser.read(amzn)
         if not parser.has_section(self.section):
             parser.add_section(self.section)
         parser.set(self.section, 'ec2-key-name', key.name)
         parser.set(self.section, 'ec2-key-file', key_file)
-        parser.save(amzn)
+        fp = open(amzn, 'w')
+        parser.write(fp)
+        fp.close()
         local('ssh-add %s' %key_file)
 
 

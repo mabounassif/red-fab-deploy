@@ -1,6 +1,8 @@
 
 import os, sys
 import time
+from fab_deploy.config import CustomConfig
+
 import boto
 from boto import ec2
 from boto.ec2 import elb
@@ -23,12 +25,22 @@ DEFAULT_REGION  = 'us-west-1'
 def get_ec2_connection(server_type, **kwargs):
     """
     create a connection to aws.
-    aws_access_key and aws_secret_key should be defined in fabfile,
-    or given at the command line
+
+    aws_access_key and aws_secret_key should be defined in $AWS_CREDENTIAL file
     """
 
-    aws_access_key = kwargs.get('aws_access_key', env.get('aws_access_key'))
-    aws_secret_key = kwargs.get('aws_secret_key', env.get('aws_secret_key'))
+    amzn = os.environ.get('AWS_CREDENTIAL', env.get('AWS_CREDENTIAL', ''))
+    if not os.path.exists(amzn):
+        print ("Cannot find environment variable AMAZON_CREDENTIALS which should"
+               " point to a file with your aws_access_key and aws_secret_key info"
+               " inside. You may specify it through your system env or fab env.")
+        sys.exit()
+
+    parser = CustomConfig()
+    parser.read(amzn)
+
+    aws_access_key = parser.get('amazon-aws', 'aws_access_key')
+    aws_secret_key = parser.get('amazon-aws', 'aws_secret_key')
 
     if not aws_access_key or not aws_secret_key:
         print "You must specify your amazon aws credentials to your env."
@@ -40,8 +52,8 @@ def get_ec2_connection(server_type, **kwargs):
 
     if server_type == 'ec2':
         conn = ec2.connect_to_region(region,
-                                          aws_access_key_id=aws_access_key,
-                                          aws_secret_access_key=aws_secret_key)
+                                     aws_access_key_id=aws_access_key,
+                                     aws_secret_access_key=aws_secret_key)
         return conn
     elif server_type == 'elb':
         conn = elb.connect_to_region(region,
@@ -54,12 +66,10 @@ class CreateKeyPair(Task):
     """
     create an aws key pair
 
-    This key will be stored under  $PROJECT_ROOT/deploy/ directory and
-    registered in server.ini file. You will need it to access all the
+    This key will be stored under the same directory as $AWS_CREDENTIAL and
+    registered in $AWS_CREDENTIAL file. You will need it to access all the
     instances created with it.
 
-    * **aws_access_key**:  aws access key id
-    * **aws_secret_key**:  aws secret key
     """
 
     name = 'create_key'
@@ -71,7 +81,9 @@ class CreateKeyPair(Task):
         conn = get_ec2_connection(server_type='ec2', **kwargs)
         sys.stdout.write("Please give a name to the key: ")
 
-        key_dir = os.path.join(env.project_path, 'deploy')
+        amzn = os.environ.get('AWS_CREDENTIAL',
+                              env.get('AWS_CREDENTIAL'))
+        key_dir = os.path.dirname(amzn)
         while True:
             key_name = raw_input()
             key_file = os.path.join(key_dir, key_name+'.pem')
@@ -93,13 +105,13 @@ class CreateKeyPair(Task):
                 key.save(key_dir)
                 break
 
-        if not env.config_object.has_section(self.section):
-            env.config_object.add_section(self.section)
-        env.config_object.set(self.section,
-                              env.config_object.EC2_KEY_NAME, key.name)
-        env.config_object.set(self.section,
-                              env.config_object.EC2_KEY_FILE, key_file)
-        env.config_object.save(env.conf_filename)
+        parser = CustomConfig()
+        parser.read(amzn)
+        if not parser.has_section(self.section):
+            parser.add_section(self.section)
+        parser.set(self.section, 'ec2-key-name', key.name)
+        parser.set(self.section, 'ec2-key-file', key_file)
+        parser.save(amzn)
         local('ssh-add %s' %key_file)
 
 

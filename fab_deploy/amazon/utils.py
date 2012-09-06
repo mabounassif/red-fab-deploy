@@ -23,7 +23,7 @@ def get_ip_command(interface):
 
 def get_security_group(conn, section):
     """
-    Get security group。
+    Get security group
     If not exists, create one, enable ssh access and return it
 
     The security groups are named after the section name in server.ini.

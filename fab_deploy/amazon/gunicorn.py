@@ -7,7 +7,7 @@ from fabric.tasks import Task
 
 class GunicornInstall(Task):
     """
-    Set up gunicorn
+    Set up gunicorn, and set up supervisor to control it.
     """
 
     name = 'setup'

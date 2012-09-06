@@ -59,7 +59,7 @@ class BaseSetup(Task):
 
 class AppSetup(BaseSetup):
     """
-    Setup a app-server
+    Setup an app-server
 
     After base setup installs nginx setups a git repo. Then
     calls the deploy task.
@@ -212,21 +212,26 @@ class DevSetup(AppSetup):
 
 class LBSetup(Task):
     """
-    Set up a load balancer
+    Set up load balancer
 
     Create an elastic load balancer, read connections info from server.ini,
     get ip address and look for corresponding ec2 instances, and register
     the instances with load balancer.
 
-    you may define the following optional arguments:
-    * **aws_access_key**:  aws access key id
-    * **aws_secret_key**:  aws secret key
-    * **lb_name**:    name of load_balancer
+    you may define the following optional arguments in env:
+    * **lb_name**:  name of load_balancer. If not defined, load balancer will
+                    be named after the name of your project directory.
     * **listeners**:  listeners of load balancer, a list of tuple
-                (lb port, instance port, protocol).
+                      (lb port, instance port, protocol).
+                      If not provided, only port 80 will be registered.
     * **hc_policy**:  a dictionary defining the health check policy, keys can be
-                interval, target, healthy_threshold, timeout
-                and unhealthy_threshold
+                      interval, target, healthy_threshold, timeout
+                      and unhealthy_threshold
+
+                      default value is
+                          hc_policy = {
+                            'interval': 30,
+                            'target':   'HTTP:80/index.html', }
     """
 
     name = 'lb_server'

@@ -24,9 +24,18 @@ DEFAULT_REGION  = 'us-west-1'
 
 def get_ec2_connection(server_type, **kwargs):
     """
-    create a connection to aws.
+    Create and return a valid connection to AWS.
 
-    aws_access_key and aws_secret_key should be defined in $AWS_CREDENTIAL file
+    To establish a valid connection, aws_access_key and aws_secret_key have to
+    be defined in a file specified by env.AWS_CREDENTIAL, with a format similar
+    to server.ini file.  You should define env.AWS_CREDENTIAL in your fabfile.
+    By default, this function looks into $PROJECT_DIR/deploy/amazon.ini for the
+    credential information, and this file should has a section named 'amazon-aws'
+    and containing lines defining aws_access_key and aws_secret_key, like below
+
+    [amazon-aws]
+    aws_access_key =
+    aws_secret_key =
     """
 
     amzn = env.get('AWS_CREDENTIAL',
@@ -65,12 +74,20 @@ def get_ec2_connection(server_type, **kwargs):
 
 class CreateKeyPair(Task):
     """
-    create an aws key pair
+    Create an AWS key pair.
 
-    This key will be stored under the same directory as env.AWS_CREDENTIAL and
-    registered in env.AWS_CREDENTIAL file. You will need it to access all the
-    instances created with it.
+    This task should be run before you try to add any type of server, because
+    task api.add_server will look for the key pair on your local machine.
 
+    AWS requires a key pair to create EC2 instances, and the same key file is
+    needed to login to the instances.  This task creates a key pair, and
+    save its content in a file located under the same directory as
+    env.AWS_CREDENTIAL file.  The key name and file location will be registered
+    into the file specified by env.AWS_CREDENTIAL.
+
+    You are responsible to keep the file in a secure place and never lose it.
+    Make your own decision if you should push the key file to remote repo, or
+    let git ignore it.
     """
 
     name = 'create_key'
@@ -122,25 +139,19 @@ class New(Task):
     """
     Provisions and set up a new amazon AWS EC2 instance
 
+    This task reads in a number of variables defining the properties of EC2
+    instance, and create it.  Finally, if the instance is created successfully,
+    this task will output its properties, and set up the instance as certain
+    type of server by execute another task with the name of setup.***.
+
     You may provide the following parameters through command line.
-
-    * **aws_access_key**:  aws access key id
-    * **aws_secret_key**:  aws secret key
-
-    * **type**:  Required. server types, can be db_server, app_server,
-                 dev_server, or slave_db
-
+    * **type**:   Required. server types, can be db_server, app_server,
+                  dev_server, or slave_db
+    * **region**: default is us-west-1
     * **ami_id**: AMI ID
-
-    * **select_instance_type**:  'yes' or 'no'
-                by default, m1.medium will be used. Use 'yes' to
-                select instance type by yourself.
-
     * **static_ip**: 'yes' or 'no'
-            by default, an elastic static ip will be allocated and
-            associated with the created instance.  Use 'no' to disable it.
-
-    * **region**:     default is us-west-1
+        by default, an elastic static ip will be allocated and associated with
+        the created instance.  Use 'no' to disable it.
     """
 
     name = 'add_server'
@@ -169,10 +180,13 @@ class New(Task):
             print "I don't know how to add a %s server" % type
             sys.exit()
 
-        key_name = env.config_object.get('amazon-aws',
-                                         env.config_object.EC2_KEY_NAME)
-        key_file = env.config_object.get('amazon-aws',
-                                         env.config_object.EC2_KEY_FILE)
+        amzn = env.get('AWS_CREDENTIAL',
+                       os.path.join(env.deploy_path, 'amazon.ini'))
+        parser = ConfigParser()
+        parser.read(amzn)
+        key_name = parser.get('amazon-aws', 'ec2-key-name')
+        key_file = parser.get('amazon-aws', 'ec2-key-file')
+
         if not key_name:
             print "Sorry. You need to create key pair with create_key first."
             sys.exit()

@@ -15,9 +15,12 @@ import utils
 
 class PostgresInstall(Task):
     """
-    Install postgresql on server
+    Install postgresql on server.
 
-    install postgresql package;
+    This task gets executed inside other tasks, including
+    setup.db_server, setup.slave_db and setup.dev_server
+
+    install postgresql package, and set up access policy in pg_hba.conf.
     enable postgres access from localhost without password;
     enable all other user access from other machines with password;
     setup a few parameters related with streaming replication;

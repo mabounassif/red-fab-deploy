@@ -7,24 +7,25 @@ from api import get_ec2_connection
 
 class FirewallSync(Task):
     """
-    Updates the firewall on a live server.
+    Update security group policies of AWS based on info read from server.ini
 
-    Calls ``firewall.update_files`` and then updates the
-    remote servers using 'firewall.sync_single'
+    Under each section defining a type of server, you will find 'open-ports',
+    'restricted_ports' and 'allowed-sections' variables.  This task will open
+    'open-ports' for the corresponding type of server, and restricted access of
+    'restricted_ports' to only servers defined in 'allowed-sections'.
 
-    Takes the same arguments as ``firewall.update_files``
-
-    While this task will deploy any changes it makes they
-    are not commited to your repo. You should review any
-    changes and commit as appropriate.
+    Because we use non VPC load balancer of AWS, our load balancer has no
+    related EC2 instance. Therefore, security policies related to load-balancer
+    are different from other types of servers.
+    1.  It inherits security policy of elastic load balancer from amazon-elg-sg
+        group for itself, so we don't need to define it by ourselves.
+    2.  It is not associted with specific instance, so if load-balancer is in
+        allowed-sections, we just allow access from the whole amazon-elb/amazon-elb-sg
+        group.
     """
 
     name = 'firewall_sync'
     serial = True
-
-    """
-    update security policy based on info from server.ini
-    """
 
     def _get_lb_sg(self, **kwargs):
         elb_conn = get_ec2_connection(server_type='elb', **kwargs)

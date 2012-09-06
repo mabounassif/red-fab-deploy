@@ -21,13 +21,17 @@ def get_ip_command(interface):
     return 'ifconfig %s | grep Bcast | cut -d ":" -f 2 | cut -d " " -f 1' % interface
 
 
-def get_security_group(conn, type):
+def get_security_group(conn, section):
     """
-    Get security group according to server type.
-    If not exists, create one and return it
+    Get security group。
+    If not exists, create one, enable ssh access and return it
+
+    The security groups are named after the section name in server.ini.
+    For example, if section is 'app-server', the security group will be
+    called 'app-server-sg'.
     """
 
-    sg_name = '%s-sg' % type
+    sg_name = '%s-sg' % section
     try:
         groups = conn.get_all_security_groups(groupnames=[sg_name])
         return groups[0]

@@ -6,6 +6,5 @@ from fab_deploy import *
 
 from fab_deploy.amazon import *
 
-env.aws_access_key =  'xxx'
-env.aws_secret_key =  'xxx'
+env.AWS_CREDENTIAL = '/path/to/a/file'
 setup_env(os.path.abspath(os.path.dirname(__file__)))

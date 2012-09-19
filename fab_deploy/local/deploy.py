@@ -25,7 +25,7 @@ class Deploy(Task):
         the self.cache_prefix aren't deleted.
         """
 
-        local('rsync -rptv --progress --delete-after --filter "P %s" %s/collected-static/ %s:%s/collected-static' % (self.cache_prefix, env.project_path, env.host_string, env.git_working_dir))
+        local('rsync -rptv --progress --delete-after --filter "P %s*" %s/collected-static/ %s:%s/collected-static' % (self.cache_prefix, env.project_path, env.host_string, env.git_working_dir))
         execute('local.git.push', branch=branch)
 
     def _post_sync(self):

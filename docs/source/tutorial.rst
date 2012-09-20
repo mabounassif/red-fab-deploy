@@ -6,6 +6,17 @@ Tutorial
 
 red-fab-deploy is better used with django project created by red-start.
 
+
+For the impatient
+=================
+
+::
+    fab api.add_server:type=db_server  (create instance and set up database server)
+    fab api.add_server:type=slave_db   (set up slave db server with streaming replication)
+    fab api.add_server:type=app_server (create instance and set up app server)
+    fab setup.lb_server                (set up the elastic load balancer)
+
+
 Introduction
 =============
 
@@ -53,14 +64,22 @@ Now by running
 
 You should see a list of fab commands which we are going to use.
 
-Set up the load balancer server
-================================
+
+Create ssh key pair (only for Amazon AWS service)
+=================================================
 
 Run
+``fab api.create_key``
 
-``fab api.add_server:type=lb_server``
+A key pair will be created and registered in the file you specified in env.AWS_CREDENTIAL.  You will need this key pair to access all EC2 instances, so please keep it well.
 
-If you didn't specify joyent_account and joyent_default_data_center when in fabfile.py, you do it here by attaching additional parameters on the command above.
+For joyent instances, you don't need to do this. But you need to add your ssh key into your joyent account.
+
+
+Set up master database server
+==============================
+
+If you didn't specify joyent_account and joyent_default_data_center when in fabfile.py, you can do it here by attaching additional parameters on the command above.
 
 When an server instance is created on the remote data center, you will see its IP address get displayed on your screen. Make sure that you note it down.
 
@@ -80,17 +99,17 @@ If this task failed by accident in the midst, you can try run
 
 to finish the setup.  Don't repeat 'api.add_server', because server instance has been created and is alive.
 
-Set up master database server
-==============================
-
+Run
 ``fab api.add_server:type=db_server``
 
-postgresql package will be installed on the newly created server instance, and the basic parameters (postgresql.conf) and authentication (pg_hba.conf) will be set up. During the process, you will be prompted to create a databse user and password.  After the process is finished, related information (server-ip, database username etc) will be recorded in server.ini file.
+and postgresql package will be installed on the newly created server instance, and the basic parameters (postgresql.conf) and authentication (pg_hba.conf) will be set up. During the process, you will be prompted to create a databse user and password.  After the process is finished, related information (server-ip, database username etc) will be recorded in server.ini file.
 
-Install pgbouncer on the database server
+
+Install pgbouncer on the database server (Optional)
 =========================================
 
 ``fab postgres.setup_pgbouncer  -H admin@ip-address-of-the-database-server``
+
 
 Set up slave database server with streaming replication
 ========================================================
@@ -99,6 +118,7 @@ Set up slave database server with streaming replication
 
 Under the hood, fab read info of master database server from server.ini, created server instance, install packages, and set up master-slave streaming replication.
 
+
 Set up app_server
 ==================
 
@@ -106,12 +126,35 @@ Set up app_server
 
 Run this command twice to set up two app servers.  This command will create server instance, install packages like nginx and python, set up python virtual environment, set up git repo, push the project source code to the server instance, and install all required third parity packages.  Firewall will be updated as well.
 
+
+Set up the load balancer server
+================================
+
+Run
+
+``fab api.add_server:type=lb_server``
+
+
+Commit files modified by fab tasks
+==================================
+
+Fab tasks could alter a few configuration files on your local machine.
+
+When an instance is created and set up, its IP info and security policy will be updated in server.ini file.
+
+If joyent is used, app_server, db_server, dev_server will generate configuration files for ipfilter under deploy/ipf drectory.
+
+If joyent is used, setup.lb_server and setup.app_server will change nginx-lb.conf and nginx.conf.
+
+It's your responsibility to check the updated files and manually commit the changes.
+
+
 Other Note
 ==============
 
 The procedures described above should set up a nice environment for you to run your django app. In the future, if you update your source code, you may run
 
-``fab deploy -H admin@ip-address-of-the-app-server``
+``fab deploy:branch=xxx -H admin@ip-address-of-the-app-server``
 
 to push the change to the remote app server.
 

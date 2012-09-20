@@ -34,6 +34,7 @@ setup(
     packages=[
 		'fab_deploy',
 		'fab_deploy.joyent',
+        'fab_deploy.amazon',
 		'fab_deploy.local',
 		],
 	version = 'v0.0.4',

@@ -288,7 +288,7 @@ class PGBouncerInstall(Task):
     config = {
         '*':              'host=127.0.0.1',
         'logfile':        '/var/log/pgbouncer/pgbouncer.log',
-        'pidfile':        '/var/run/pgbouncer/pgbouncer.pid',
+        'pidfile':        '/var/pgsql/pgbouncer/pgbouncer.pid',
         'listen_addr':    '*',
         'listen_port':    '6432',
         'unix_socket_dir': '/tmp',
@@ -358,9 +358,9 @@ class PGBouncerInstall(Task):
         sudo('chown -R postgres:postgres %s' %self.config_dir)
 
         # pgbouncer won't run smoothly without these directories
-        sudo('mkdir -p /var/run/pgbouncer')
+        sudo('mkdir -p /var/pgsql/pgbouncer')
         sudo('mkdir -p /var/log/pgbouncer')
-        sudo('chown postgres:postgres /var/run/pgbouncer')
+        sudo('chown postgres:postgres /var/pgsql/pgbouncer')
         sudo('chown postgres:postgres /var/log/pgbouncer')
 
         # set up log

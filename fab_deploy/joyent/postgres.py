@@ -105,7 +105,7 @@ class PostgresInstall(Task):
     def _restart_db_server(self, db_version):
         sudo('svcadm restart postgresql:pg%s' %db_version)
 
-    def _create_user(self):
+    def _create_user(self, section):
         username = raw_input("Now we are creating the database user, please "
                              "specify a username: ")
         # 'postgres' is postgresql superuser
@@ -119,11 +119,11 @@ class PostgresInstall(Task):
         else:
             run("sudo su postgres -c 'createuser -D -S -R -P %s'" %username)
 
-        env.config_object.set('db-server', env.config_object.USERNAME, username)
+        env.config_object.set(section, env.config_object.USERNAME, username)
 
         return username
 
-    def _create_replicator(self, db_version):
+    def _create_replicator(self, db_version, section):
         db_out = run("echo '\du replicator' | sudo su postgres -c 'psql'")
         if 'replicator' not in db_out:
             replicator_pass = random_password(12)
@@ -134,9 +134,9 @@ class PostgresInstall(Task):
             history_file = os.path.join('/var', 'pgsql', '.psql_history')
             if exists(history_file):
                 sudo('rm %s' %history_file)
-            env.config_object.set('db-server', env.config_object.REPLICATOR,
+            env.config_object.set(section, env.config_object.REPLICATOR,
                                   'replicator')
-            env.config_object.set('db-server', env.config_object.REPLICATOR_PASS,
+            env.config_object.set(section, env.config_object.REPLICATOR_PASS,
                                   replicator_pass)
             return replicator_pass
         else:
@@ -144,7 +144,8 @@ class PostgresInstall(Task):
             return None
 
 
-    def run(self, db_version=None, encrypt=None, save_config=True, **kwargs):
+    def run(self, db_version=None, encrypt=None, save_config=True,
+            section='db-server', **kwargs):
         """
         """
         if not db_version:
@@ -166,8 +167,8 @@ class PostgresInstall(Task):
                                     config=self.postgres_config)
         self._restart_db_server(db_version)
         self._setup_ssh_key()
-        self._create_user()
-        self._create_replicator(db_version)
+        self._create_user(section)
+        self._create_replicator(db_version, section)
 
         if save_config:
             env.config_object.save(env.conf_filename)
@@ -192,8 +193,8 @@ class SlaveSetup(PostgresInstall):
 
         return version
 
-    def _get_replicator_pass(self, section='db-server'):
-        password = env.config_object.get_list(section,
+    def _get_replicator_pass(self):
+        password = env.config_object.get_list('db-server',
                                              env.config_object.REPLICATOR_PASS)
         return password[0]
 
@@ -232,7 +233,7 @@ class SlaveSetup(PostgresInstall):
                 run('sudo su postgres -c "echo %s >> %s"'
                     %(pub_key, authorized_keys))
 
-    def run(self, master=None, encrypt=None, **kwargs):
+    def run(self, master=None, encrypt=None, section=None, **kwargs):
         """
         """
         if not master:

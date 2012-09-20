@@ -143,7 +143,8 @@ class DBSetup(BaseSetup):
         self._update_apt()
         self._update_config(self.config_section)
         self._secure_ssh()
-        execute('postgres.master_setup', save_config=False)
+        execute('postgres.master_setup', save_config=False,
+                section=self.config_section)
         self._save_config()
 
 
@@ -186,7 +187,8 @@ class SlaveSetup(DBSetup):
             env.config_object.add_section(self.config_section)
         self._update_config(self.config_section)
         self._secure_ssh()
-        execute('postgres.slave_setup', master=master)
+        execute('postgres.slave_setup', master=master,
+                section=self.config_section)
         self._save_config()
 
 
@@ -207,7 +209,7 @@ class DevSetup(AppSetup):
 
     def _setup_services(self):
         super(DevSetup, self)._setup_services()
-        execute('postgres.master_setup')
+        execute('postgres.master_setup', section=self.config_section)
 
 
 class LBSetup(Task):

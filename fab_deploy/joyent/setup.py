@@ -184,7 +184,8 @@ class DBSetup(BaseSetup):
         self._update_config(self.config_section)
         self._secure_ssh()
         self._update_firewalls(self.config_section)
-        dict = execute('postgres.master_setup', save_config=False)
+        dict = execute('postgres.master_setup', section=self.config_section,
+                       save_config=True)
         self._save_config()
 
 class SlaveSetup(DBSetup):
@@ -224,7 +225,8 @@ class SlaveSetup(DBSetup):
         self._update_config(self.config_section)
         self._secure_ssh()
         self._update_firewalls(self.config_section)
-        execute('postgres.slave_setup', master=master)
+        execute('postgres.slave_setup', master=master,
+                section=self.config_section)
         self._save_config()
 
 class DevSetup(AppSetup):
@@ -243,7 +245,7 @@ class DevSetup(AppSetup):
 
     def _setup_services(self):
         super(DevSetup, self)._setup_services()
-        execute('postgres.master_setup')
+        execute('postgres.master_setup', section=self.config_section)
 
 app_server = AppSetup()
 lb_server = LBSetup()

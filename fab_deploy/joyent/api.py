@@ -62,7 +62,7 @@ class New(Task):
         assert not env.hosts
         if not env.get('joyent_account'):
             print "To use the joyent api you must add a joyent_account value to your env"
-            sys.exit()
+            sys.exit(1)
 
         setup_name = 'setup.%s' % kwargs.get('type')
 
@@ -78,14 +78,14 @@ class New(Task):
                 default_package = task.server_size
         else:
             print "I don't know how to add a %s server" % kwargs.get('type')
-            sys.exit()
+            sys.exit(1)
 
         location = kwargs.get('data_center')
         if not location and env.get('joyent_default_data_center'):
             location = env.joyent_default_data_center
         elif not location:
             print "You must supply an data_center argument or add a joyent_default_data_center attribute to your env"
-            sys.exit()
+            sys.exit(1)
 
         key_name = raw_input('Enter your ssh key name: ')
         key_id = '/%s/keys/%s' % ( env.joyent_account, key_name)

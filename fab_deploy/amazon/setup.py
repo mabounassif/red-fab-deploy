@@ -23,7 +23,7 @@ class BaseSetup(Task):
     def _update_config(self, config_section):
         if not env.host_string:
             print "env.host_string is None, please specify a host by -H "
-            sys.exit()
+            sys.exit(1)
         added = False
         cons = env.config_object.get_list(config_section,
                                           env.config_object.CONNECTIONS)
@@ -162,7 +162,7 @@ class SlaveSetup(DBSetup):
         if n == 0:
             print ('I could not find db server in server.ini.'
                    'Did you set up a master server?')
-            sys.exit()
+            sys.exit(1)
         else:
             for i in range(1, n + 1):
                 print "[%2d ]: %s" % (i, cons[i - 1])
@@ -286,7 +286,7 @@ class LBSetup(Task):
             instances = self.get_instance_id_by_ip(ip, **kwargs)
             if len(instances) == 0:
                 print "Cannot find any ec2 instances match your connections"
-                sys.exit()
+                sys.exit(1)
 
         elb = self._get_elb(elb_conn, lb_name)
         print "find load balancer %s" %lb_name

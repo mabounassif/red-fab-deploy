@@ -33,12 +33,12 @@ class BaseSetup(Task):
             print ("If an instance has been created. You may run fab"
                    "setup.[server_type] to continue.")
             print "--------------------------"
-            sys.exit()
+            sys.exit(1)
 
     def _update_config(self, config_section):
         if not env.host_string:
             print "env.host_string is None, please specify a host by -H "
-            sys.exit()
+            sys.exit(1)
 
         self._is_section_exists(config_section)
 
@@ -217,7 +217,7 @@ class SlaveSetup(DBSetup):
         if n == 0:
             print ('I could not find db server in server.ini.'
                    'Did you set up a master server?')
-            sys.exit()
+            sys.exit(1)
         else:
             for i in range(1, n+1):
                 print "[%2d ]: %s" %(i, cons[i-1])

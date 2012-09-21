@@ -75,7 +75,7 @@ class PostgresInstall(Task):
         else:
             print ('Could not find file %s. Please make sure postgresql was '
                    'installed and data dir was created correctly.'%hba_conf)
-            sys.exit()
+            sys.exit(1)
 
     def _setup_postgres_config(self, data_dir=None, config=None):
         postgres_conf = os.path.join(data_dir, 'postgresql.conf')
@@ -85,7 +85,7 @@ class PostgresInstall(Task):
         else:
             print ('Could not find file %s. Please make sure postgresql was '
                    'installed and data dir was created correctly.' %postgres_conf)
-            sys.exit()
+            sys.exit(1)
 
     def _setup_archive_dir(self, data_dir):
         archive_dir = os.path.join(data_dir, 'wal_archive')
@@ -247,7 +247,7 @@ class SlaveSetup(PostgresInstall):
         """
         if not master:
             print "Hey, a master is required for slave."
-            sys.exit()
+            sys.exit(1)
 
         replicator_pass = self._get_replicator_pass()
 

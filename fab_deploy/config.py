@@ -25,7 +25,7 @@ class CustomConfig(ConfigParser.ConfigParser):
         if not self.has_option(section, key):
             return []
 
-        return [x.strip() for x in self.get(section, key).split(',') if x ]
+        return [x.strip() for x in self.get(section, key).split(',') if x.strip() ]
 
     def set_list(self, section, key, slist):
         """

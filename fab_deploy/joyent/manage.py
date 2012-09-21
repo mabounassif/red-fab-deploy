@@ -33,7 +33,7 @@ class FirewallSync(Task):
         for s in sections:
             filename = task.get_section_path(s)
             execute('firewall.sync_single', filename=filename,
-                hosts=env.config_object.get_list(section,
+                hosts=env.config_object.get_list(s,
                                 env.config_object.CONNECTIONS))
 
 firewall_sync = FirewallSync()

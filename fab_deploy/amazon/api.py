@@ -44,7 +44,7 @@ def get_ec2_connection(server_type, **kwargs):
         print ("Cannot find environment variable AMAZON_CREDENTIALS which should"
                " point to a file with your aws_access_key and aws_secret_key info"
                " inside. You may specify it through your fab env.")
-        sys.exit()
+        sys.exit(1)
 
     parser = ConfigParser()
     parser.read(amzn)
@@ -54,7 +54,7 @@ def get_ec2_connection(server_type, **kwargs):
 
     if not aws_access_key or not aws_secret_key:
         print "You must specify your amazon aws credentials to your env."
-        sys.exit()
+        sys.exit(1)
 
     region = kwargs.get('region', env.get('region'))
     if not region:
@@ -178,7 +178,7 @@ class New(Task):
                 ami_id = task.ami
         else:
             print "I don't know how to add a %s server" % type
-            sys.exit()
+            sys.exit(1)
 
         amzn = env.get('AWS_CREDENTIAL',
                        os.path.join(env.deploy_path, 'amazon.ini'))
@@ -189,12 +189,12 @@ class New(Task):
 
         if not key_name:
             print "Sorry. You need to create key pair with create_key first."
-            sys.exit()
+            sys.exit(1)
         elif not os.path.exists(key_file):
             print ("I find key %s in server.ini file, but the key file is not"
                    " on its location %s. There is something wrong. Please fix "
                    "it, or recreate key pair" % (key_name, key_file))
-            sys.exit()
+            sys.exit(1)
 
         image = conn.get_image(ami_id)
         security_group = get_security_group(conn, task.config_section)

@@ -23,10 +23,25 @@ class BaseSetup(Task):
     # they should always be run serially.
     serial = True
 
+    def _is_section_exists(self, section):
+        if env.config_object.has_section(section):
+            return True
+        else:
+            print "--------------------------"
+            print ("Cannot find section %s. Please add [%s] into your"
+                   " server.ini file." %(section, section))
+            print ("If an instance has been created. You may run fab"
+                   "setup.[server_type] to continue.")
+            print "--------------------------"
+            sys.exit()
+
     def _update_config(self, config_section):
         if not env.host_string:
             print "env.host_string is None, please specify a host by -H "
             sys.exit()
+
+        self._is_section_exists(config_section)
+
         added = False
         cons = env.config_object.get_list(config_section, env.config_object.CONNECTIONS)
         if not env.host_string in cons:
@@ -221,8 +236,8 @@ class SlaveSetup(DBSetup):
     def run(self, name=None):
         """
         """
-        master = self._get_master()
         self._update_config(self.config_section)
+        master = self._get_master()
         self._secure_ssh()
         self._update_firewalls(self.config_section)
         execute('postgres.slave_setup', master=master,

@@ -243,6 +243,9 @@ class SlaveSetup(DBSetup):
         execute('postgres.slave_setup', master=master,
                 section=self.config_section)
         self._save_config()
+        with settings(host_string=master):
+            section = 'db-server'
+            self._update_firewalls(section)
 
 class DevSetup(AppSetup):
     """

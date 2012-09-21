@@ -97,11 +97,14 @@ class PostgresInstall(Task):
     def _setup_ssh_key(self):
         ssh_dir = '/var/pgsql/.ssh'
 
-        sudo('mkdir -p %s' %ssh_dir)
-        sudo('chown -R postgres:postgres %s' %ssh_dir)
-        sudo('chmod -R og-rwx %s' %ssh_dir)
         rsa = os.path.join(ssh_dir, 'id_rsa')
-        run('sudo su postgres -c "ssh-keygen -t rsa -f %s -N \'\'"' %rsa)
+        if exists(rsa):
+            print "rsa key exists, skipping creating"
+        else:
+            sudo('mkdir -p %s' %ssh_dir)
+            sudo('chown -R postgres:postgres %s' %ssh_dir)
+            sudo('chmod -R og-rwx %s' %ssh_dir)
+            run('sudo su postgres -c "ssh-keygen -t rsa -f %s -N \'\'"' %rsa)
 
     def _restart_db_server(self, db_version):
         sudo('svcadm restart postgresql:pg%s' %db_version)

@@ -13,6 +13,7 @@ from fabric.context_managers import cd
 from fabric.tasks import Task
 
 from fab_deploy.functions import random_password
+import utils
 
 class PostgresInstall(Task):
     """
@@ -239,7 +240,6 @@ class SlaveSetup(PostgresInstall):
             print "Hey, a master is required for slave."
             sys.exit()
 
-        master_ip = master.split('@')[-1]
         db_version = self._get_master_db_version(master=master)
         data_dir = self._get_data_dir(db_version)
         slave = env.host_string
@@ -253,6 +253,7 @@ class SlaveSetup(PostgresInstall):
         self._ssh_key_exchange(master, slave)
 
         with settings(host_string=master):
+            master_ip = run(utils.get_ip_command(None)) # internal ip
 
             run('echo "select pg_start_backup(\'backup\', true)" | sudo su postgres -c \'psql\'')
             run('sudo su postgres -c "rsync -av --exclude postmaster.pid '

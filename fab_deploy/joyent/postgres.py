@@ -205,6 +205,7 @@ class SlaveSetup(PostgresInstall):
             print ("I can't find replicator-password from db-server section "
                    "of your server.ini file.\n Please set up replicator user "
                    "in your db-server, and register its info in server.ini")
+            sys.exit()
 
     def _setup_recovery_conf(self, master_ip, password, data_dir):
         wal_dir = os.path.join(data_dir, 'wal_archive')

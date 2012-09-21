@@ -194,9 +194,14 @@ class SlaveSetup(PostgresInstall):
         return version
 
     def _get_replicator_pass(self):
-        password = env.config_object.get_list('db-server',
+        try:
+            password = env.config_object.get_list('db-server',
                                              env.config_object.REPLICATOR_PASS)
-        return password[0]
+            return password[0]
+        except:
+            print ("I can't find replicator-password from db-server section "
+                   "of your server.ini file.\n Please set up replicator user "
+                   "in your db-server, and register its info in server.ini")
 
     def _setup_recovery_conf(self, master_ip, password, data_dir):
         wal_dir = os.path.join(data_dir, 'wal_archive')
@@ -240,6 +245,8 @@ class SlaveSetup(PostgresInstall):
             print "Hey, a master is required for slave."
             sys.exit()
 
+        replicator_pass = self._get_replicator_pass()
+
         db_version = self._get_master_db_version(master=master)
         data_dir = self._get_data_dir(db_version)
         slave = env.host_string
@@ -264,7 +271,6 @@ class SlaveSetup(PostgresInstall):
                                     config=self.postgres_config)
         self._setup_archive_dir(data_dir)
 
-        replicator_pass = self._get_replicator_pass()
         self._setup_recovery_conf(master_ip=master_ip,
                                   password=replicator_pass, data_dir=data_dir)
 

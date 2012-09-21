@@ -24,8 +24,8 @@ class BaseSetup(Task):
     serial = True
 
     def _set_profile(self):
-        append('/etc/profile', 'export CC="gcc -m64"', use_sudo=True)
-        append('/etc/profile', 'export LDSHARED="gcc -m64 -G"', use_sudo=True)
+        append('/etc/profile', 'CC="gcc -m64"; export CC', use_sudo=True)
+        append('/etc/profile', 'LDSHARED="gcc -m64 -G"; export LDSHARED', use_sudo=True)
 
     def _update_config(self, config_section):
         if not env.host_string:

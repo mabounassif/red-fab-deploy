@@ -23,6 +23,10 @@ class BaseSetup(Task):
     # they should always be run serially.
     serial = True
 
+    def _set_profile(self):
+        append('/etc/profile', 'CC="gcc -m64"', use_sudo=True)
+        append('/etc/profile', 'LDSHARED="gcc -m64 -G"', use_sudo=True)
+
     def _update_config(self, config_section):
         if not env.host_string:
             print "env.host_string is None, please specify a host by -H "
@@ -117,8 +121,8 @@ class LBSetup(BaseSetup):
 
         # Transfer files first so all configs are in place.
         self._transfer_files()
-
         self._secure_ssh()
+        self._set_profile()
         self._install_packages()
         self._setup_services()
         self._update_firewalls(self.config_section)
@@ -183,6 +187,7 @@ class DBSetup(BaseSetup):
     def run(self, name=None):
         self._update_config(self.config_section)
         self._secure_ssh()
+        self._set_profile()
         self._update_firewalls(self.config_section)
         dict = execute('postgres.master_setup', section=self.config_section,
                        save_config=True)
@@ -224,6 +229,7 @@ class SlaveSetup(DBSetup):
         master = self._get_master()
         self._update_config(self.config_section)
         self._secure_ssh()
+        self._set_profile()
         self._update_firewalls(self.config_section)
         execute('postgres.slave_setup', master=master,
                 section=self.config_section)

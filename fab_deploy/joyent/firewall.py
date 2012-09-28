@@ -123,7 +123,7 @@ class FirewallUpdate(Task):
         if section:
             sections = [section]
         else:
-            execute('local.config.update_internal_ips')
+            execute('local.config.update_internal_ips', hosts=[env.host_string])
             sections = env.config_object.sections()
 
         for s in sections:

@@ -48,7 +48,12 @@ class PostgresInstall(Task):
         'archive_mode':      "on" }
 
     def _get_data_dir(self, db_version):
-        return os.path.join('/var', 'pgsql', 'data%s' %db_version)
+        data_path = os.path.join('/var', 'pgsql')
+        data_version_path = os.path.join(data_path, 'data%s' %db_version)
+        if exists(data_version_path):
+            return data_version_path
+        else:
+            return os.path.join(data_path, 'data')
 
     def _setup_parameter(self, file, **kwargs):
         for key, value in kwargs.items():
@@ -59,7 +64,7 @@ class PostgresInstall(Task):
     def _install_package(self, db_version=None):
         sudo("pkg_add postgresql%s-server" %db_version)
         sudo("pkg_add postgresql%s-replicationtools" %db_version)
-        sudo("svcadm enable postgresql:pg%s" %db_version)
+        sudo("svcadm enable postgresql")
 
     def _setup_hba_config(self, data_dir=None, encrypt=None):
         """
@@ -103,7 +108,7 @@ class PostgresInstall(Task):
         run('sudo su postgres -c "ssh-keygen -t rsa -f %s -N \'\'"' %rsa)
 
     def _restart_db_server(self, db_version):
-        sudo('svcadm restart postgresql:pg%s' %db_version)
+        sudo('svcadm restart postgresql')
 
     def _create_user(self):
         username = raw_input("Now we are creating the database user, please "
@@ -247,7 +252,7 @@ class SlaveSetup(PostgresInstall):
         hba_conf= os.path.join(data_dir, 'pg_hba.conf')
 
         self._install_package(db_version=db_version)
-        sudo('svcadm disable postgresql:pg%s' %db_version)
+        sudo('svcadm disable postgresql')
 
         self._setup_ssh_key()
         self._ssh_key_exchange(master, slave)
@@ -271,7 +276,7 @@ class SlaveSetup(PostgresInstall):
             encrypt = self.encrypt
         self._setup_hba_config(data_dir, encrypt)
 
-        sudo('svcadm enable postgresql:pg%s' %db_version)
+        sudo('svcadm enable postgresql')
         print('password for replicator on master node is %s' %replicator_pass)
 
 class PGBouncerInstall(Task):

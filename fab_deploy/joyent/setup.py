@@ -23,10 +23,29 @@ class BaseSetup(Task):
     # they should always be run serially.
     serial = True
 
+    def _set_profile(self):
+        append('/etc/profile', 'CC="gcc -m64"; export CC', use_sudo=True)
+        append('/etc/profile', 'LDSHARED="gcc -m64 -G"; export LDSHARED', use_sudo=True)
+
+    def _is_section_exists(self, section):
+        if env.config_object.has_section(section):
+            return True
+        else:
+            print "--------------------------"
+            print ("Cannot find section %s. Please add [%s] into your"
+                   " server.ini file." %(section, section))
+            print ("If an instance has been created. You may run fab"
+                   "setup.[server_type] to continue.")
+            print "--------------------------"
+            sys.exit(1)
+
     def _update_config(self, config_section):
         if not env.host_string:
             print "env.host_string is None, please specify a host by -H "
-            sys.exit()
+            sys.exit(1)
+
+        self._is_section_exists(config_section)
+
         added = False
         cons = env.config_object.get_list(config_section, env.config_object.CONNECTIONS)
         if not env.host_string in cons:
@@ -117,8 +136,8 @@ class LBSetup(BaseSetup):
 
         # Transfer files first so all configs are in place.
         self._transfer_files()
-
         self._secure_ssh()
+        self._set_profile()
         self._install_packages()
         self._setup_services()
         self._update_firewalls(self.config_section)
@@ -183,8 +202,10 @@ class DBSetup(BaseSetup):
     def run(self, name=None):
         self._update_config(self.config_section)
         self._secure_ssh()
+        self._set_profile()
         self._update_firewalls(self.config_section)
-        dict = execute('postgres.master_setup', save_config=False)
+        dict = execute('postgres.master_setup', section=self.config_section,
+                       save_config=True)
         self._save_config()
 
 class SlaveSetup(DBSetup):
@@ -201,7 +222,7 @@ class SlaveSetup(DBSetup):
         if n == 0:
             print ('I could not find db server in server.ini.'
                    'Did you set up a master server?')
-            sys.exit()
+            sys.exit(1)
         else:
             for i in range(1, n+1):
                 print "[%2d ]: %s" %(i, cons[i-1])
@@ -220,12 +241,19 @@ class SlaveSetup(DBSetup):
     def run(self, name=None):
         """
         """
-        master = self._get_master()
         self._update_config(self.config_section)
+        master = self._get_master()
         self._secure_ssh()
+        self._set_profile()
         self._update_firewalls(self.config_section)
-        execute('postgres.slave_setup', master=master)
+        execute('postgres.slave_setup', master=master,
+                section=self.config_section)
         self._save_config()
+
+        # update firewall for db-server
+        task = functions.get_task_instance('firewall.update_files')
+        filename = task.get_section_path('db-server')
+        execute('firewall.sync_single', filename=filename, hosts=[master])
 
 class DevSetup(AppSetup):
     """
@@ -243,7 +271,7 @@ class DevSetup(AppSetup):
 
     def _setup_services(self):
         super(DevSetup, self)._setup_services()
-        execute('postgres.master_setup')
+        execute('postgres.master_setup', section=self.config_section)
 
 app_server = AppSetup()
 lb_server = LBSetup()

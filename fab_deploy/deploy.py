@@ -11,7 +11,7 @@ def pre_deploy(branch=None):
     hosts.
     """
 
-    execute('local.deploy.prep', branch=branch)
+    execute('local.deploy.prep', branch=branch, hosts=[env.host_string])
 
 @task(hosts=[])
 def deploy(branch=None):
@@ -25,8 +25,10 @@ def deploy(branch=None):
     to deploy a branch other than master.
     """
 
-    pre_deploy(branch=branch)
-    execute('local.deploy.do', branch=branch)
+    if not env.get('deploy_ready', False):
+        pre_deploy(branch=branch)
+        env.deploy_ready = True
+    execute('local.deploy.do', branch=branch, hosts=[env.host_string])
 
 @task(hosts=[])
 def migrate():

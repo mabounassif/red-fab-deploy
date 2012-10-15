@@ -16,7 +16,7 @@ These tools are being geared towards deploying on Joyent but can be extended to 
 
 IMPORTANT: red-fab-deploy will only work if you install the following packages:
 
-	$ pip install -e git+git://github.com/bitprophet/fabric.git#egg=fabric
+	$ pip install fabric
 
 To use the joyent provider you will need smartdc
 

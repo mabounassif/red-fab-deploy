@@ -34,9 +34,10 @@ setup(
     packages=[
 		'fab_deploy',
 		'fab_deploy.joyent',
+        'fab_deploy.amazon',
 		'fab_deploy.local',
 		],
-	version = 'v0.0.5',
+	version = '0.0.7',
     author='RED Interactive Agency',
     author_email='geeks@ff0000.com',
 

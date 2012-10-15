@@ -16,13 +16,16 @@ class CustomConfig(ConfigParser.ConfigParser):
     REPLICATOR_PASS = 'replicator-password'
     GIT_SYNC = 'git-sync'
 
+    EC2_KEY_NAME = 'ec2-key-name'
+    EC2_KEY_FILE = 'ec2-key-file'
+
     def get_list(self, section, key):
         """
         """
         if not self.has_option(section, key):
             return []
 
-        return [x for x in self.get(section, key).split(',') if x ]
+        return [x.strip() for x in self.get(section, key).split(',') if x.strip() ]
 
     def set_list(self, section, key, slist):
         """

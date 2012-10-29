@@ -1,4 +1,3 @@
-
 .. toctree::
 
 Tutorial
@@ -113,6 +112,8 @@ Install pgbouncer on the database server (Optional)
 
 Set up slave database server with streaming replication
 ========================================================
+Add [slave-db] with allowed-sections and restricted-ports to servers.ini file.
+
 
 ``fab api.add_server:type=slave_db``
 

@@ -8,13 +8,13 @@ red-fab-deploy is better used with django project created by red-start.
 
 For the impatient
 =================
-
-``
+Run the following commands to set up different types of server
+::
     fab api.add_server:type=db_server  (create instance and set up database server)
     fab api.add_server:type=slave_db   (set up slave db server with streaming replication)
     fab api.add_server:type=app_server (create instance and set up app server)
     fab setup.lb_server                (set up the elastic load balancer)
-``
+
 
 Introduction
 =============

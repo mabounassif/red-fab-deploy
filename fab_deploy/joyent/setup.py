@@ -127,7 +127,7 @@ class LBSetup(BaseSetup):
     def _transfer_files(self):
         execute('git.setup', branch=self.git_branch, hook=self.git_hook)
         execute('local.git.push', branch=self.git_branch)
-
+        execute('local.git.reset_remote')
 
     def run(self, name=None):
         self._update_config(self.config_section)
@@ -167,8 +167,17 @@ class AppSetup(LBSetup):
     name = 'app_server'
 
     config_section = 'app-server'
+    settings_host = config_section
 
     nginx_conf = 'nginx/nginx.conf'
+
+    def _set_profile(self):
+        super(AppSetup, self)._set_profile()
+        if self.settings_host and env.project_env_var:
+            data = {'env_name': env.project_env_var,
+                    'value' : self.settings_host}
+            line = '%(env_name)s="%(value)s"; export %(env_name)s' % data
+            append('/etc/profile', line, use_sudo=True)
 
     def _modify_others(self):
         task = functions.get_task_instance('setup.lb_server')
@@ -189,7 +198,7 @@ class AppSetup(LBSetup):
 
     def _setup_services(self):
         super(AppSetup, self)._setup_services()
-        execute('gunicorn.setup')
+        execute('gunicorn.setup', self.settings_host)
         run('svcadm enable gunicorn')
 
 class DBSetup(BaseSetup):
@@ -261,6 +270,7 @@ class DevSetup(AppSetup):
     """
     name = 'dev_server'
     config_section = 'dev-server'
+    settings_host = config_section
 
     def _modify_others(self):
         pass

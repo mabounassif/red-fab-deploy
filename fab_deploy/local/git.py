@@ -1,5 +1,6 @@
-from fabric.api import local, env, execute
+from fabric.api import local, env, execute, run
 from fabric.tasks import Task
+from fabric.context_managers import cd
 
 class AddGitRemote(Task):
     """
@@ -33,7 +34,7 @@ class RemoveGitRemote(Task):
     Removes a remote from your git repo.
 
     Requires one argument:
-    
+
     * **remote_name**: The name that you want to remove from your git repo.
 
     This is a serial task, that should not be called
@@ -51,7 +52,7 @@ class GitPush(Task):
     Pushes your repo to remotes specified by hosts
 
     Takes one optional argument:
-    
+
     * **branch**: The branch that you would like to push.
                 If it is not provided 'master' will be used.
 
@@ -69,7 +70,18 @@ class GitPush(Task):
         local('git push %s %s' % (
                 remote_name, branch))
 
+class GitResetRemoteHead(Task):
+    """
+    Deletes the remote head making the next push
+    look like a fresh update.
+    """
+    name = 'reset_remote'
+
+    def run(self, hosts=[]):
+        with cd(env.git_repo_name):
+            run('git update-ref -d HEAD')
 
 push = GitPush()
 add_remote = AddGitRemote()
 rm_remote = RemoveGitRemote()
+reset_remote = GitResetRemoteHead()

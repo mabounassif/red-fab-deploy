@@ -75,6 +75,7 @@ class AppSetup(BaseSetup):
     name = 'app_server'
 
     config_section = 'app-server'
+    settings_host = config_section
 
     nginx_conf = 'nginx/nginx.conf'
 
@@ -89,9 +90,18 @@ class AppSetup(BaseSetup):
                                     user_and_host=env.host_string)
         return name
 
+    def _set_profile(self):
+        super(AppSetup, self)._set_profile()
+        if self.settings_host and env.project_env_var:
+            data = {'env_name': env.project_env_var,
+                    'value' : self.settings_host}
+            line = '%(env_name)s="%(value)s"; export %(env_name)s' % data
+            append('/etc/profile', line, use_sudo=True)
+
     def _transfer_files(self):
         execute('git.setup', branch=self.git_branch, hook=self.git_hook)
         execute('local.git.push', branch=self.git_branch)
+        execute('local.git.reset_remote')
 
     def _modify_others(self):
         execute('setup.lb_server', section=self.config_section)
@@ -198,6 +208,7 @@ class DevSetup(AppSetup):
     """
     name = 'dev_server'
     config_section = 'dev-server'
+    settings_host = config_section
 
     def _modify_others(self):
         pass

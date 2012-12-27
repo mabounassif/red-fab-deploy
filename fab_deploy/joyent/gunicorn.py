@@ -8,7 +8,7 @@ class GunicornInstall(Task):
 
     name = 'setup'
 
-    def run(self):
+    def run(self, env_value=None):
         """
         """
 
@@ -18,5 +18,9 @@ class GunicornInstall(Task):
         # Add django log
         sudo('logadm -C 3 -p1d -c -w /var/log/gunicorn/django.log -z 1')
         run('svccfg import /srv/active/deploy/gunicorn/gunicorn.xml')
+
+        if env_value:
+            run('svccfg -s gunicorn setenv %s %s' % (env.project_env_var,
+                                                    env_value))
 
 setup = GunicornInstall()

@@ -70,3 +70,10 @@ def setup_env(project_path):
             host = env.git_remotes[host]
         hosts.append(host)
     env.hosts = hosts
+
+    env.project_env_var = None
+    try:
+        from project.settings import ENV_VAR
+        env.project_env_var = ENV_VAR
+    except ImportError:
+        pass

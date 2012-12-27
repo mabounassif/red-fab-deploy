@@ -1,6 +1,7 @@
 import os
 
 from fab_deploy import functions
+from fab_deploy.config import CustomConfig
 
 from fabric.api import run, sudo, env, put, execute, local
 from fabric.tasks import Task
@@ -31,6 +32,91 @@ class FirewallSingleSync(Task):
         run('svcadm enable ipfilter')
         run('svcadm restart ipfilter')
 
+class TCPOptions(object):
+    internal_interface = 'net1'
+    external_interface = 'net0'
+    proto = 'tcp'
+    group = '200'
+
+    start_line = "## Start Configurable Section ##"
+    end_line = "## End Configurable Section ##"
+
+    open_ports = CustomConfig.OPEN_PORTS
+    internal_restricted_ports = CustomConfig.RESTRICTED_PORTS
+    external_restricted_ports = CustomConfig.EX_RESTRICTED_PORTS
+
+    allowed = CustomConfig.ALLOWED_SECTIONS
+    ex_allowed = CustomConfig.EX_ALLOWED_SECTIONS
+
+    def get_line(self, port, interface=None, from_ip='any'):
+        if not interface:
+            interface = ''
+        else:
+            interface = ' on ' + interface
+
+        config = {
+            'interface' : interface,
+            'proto' : self.proto,
+            'from_ip' : from_ip,
+            'port' : port,
+            'group' : self.group
+        }
+
+        return "pass in quick%(interface)s proto %(proto)s from %(from_ip)s to any port = %(port)s keep state group %(group)s" % config
+
+    def get_optional_list(self, section, conf, ports_option,
+                          allowed_option, ip_option, interface):
+        lines = []
+        # If we have restricted ports
+        restricted_ports = conf.get_list(section, ports_option)
+        if restricted_ports:
+            # Get all the internals
+            ips = []
+            for section in conf.get_list(section, allowed_option):
+                ips.extend(conf.get_list(section, ip_option))
+
+            # Add a line for each port
+            for ip in ips:
+                ip = ip.split('@')[-1]
+                for port in restricted_ports:
+                    line = self.get_line(port, interface, ip)
+                    lines.append(line)
+        return lines
+
+    def get_config_list(self, section, conf):
+        txt = [self.start_line]
+        for port in conf.get_list(section, self.open_ports):
+            txt.append(self.get_line(port))
+
+        txt.extend(self.get_optional_list(section, conf,
+                                self.internal_restricted_ports,
+                                self.allowed,
+                                conf.INTERNAL_IPS,
+                                self.internal_interface))
+
+        txt.extend(self.get_optional_list(section, conf,
+                                self.external_restricted_ports,
+                                self.ex_allowed,
+                                conf.CONNECTIONS,
+                                self.external_interface))
+        txt.append(self.end_line)
+        return txt
+
+
+class UDPOptions(TCPOptions):
+    proto = 'udp'
+    group = '300'
+
+    start_line = "## Start UDP Configurable Section ##"
+    end_line = "## End UDP Configurable Section ##"
+
+    open_ports = CustomConfig.UDP_OPEN_PORTS
+    internal_restricted_ports = CustomConfig.UDP_RESTRICTED_PORTS
+    external_restricted_ports = CustomConfig.UDP_EX_RESTRICTED_PORTS
+
+    allowed = CustomConfig.UDP_ALLOWED_SECTIONS
+    ex_allowed = CustomConfig.UDP_EX_ALLOWED_SECTIONS
+
 class FirewallUpdate(Task):
     """
     Update ipf config file(s)
@@ -51,13 +137,7 @@ class FirewallUpdate(Task):
 
     name = 'update_files'
     serial = True
-
-    # IP Filter Defaults
-    IPF_RESTRICTED_LINE = "pass in quick on net1 proto tcp from %s to any port = %s keep state group 200"
-    IPF_OPEN_LINE = "pass in quick proto tcp from any to any port = %s keep state group 200"
-
-    START_DELM = "## Start Configurable Section ##"
-    END_DELM = "## End Configurable Section ##"
+    PROCESSORS = (UDPOptions(), TCPOptions())
 
     def _get_project_config_filepath(self, section):
         return "ipf/%s.conf" % section
@@ -78,28 +158,7 @@ class FirewallUpdate(Task):
 
         return file_path
 
-    def _get_config_text(self, section, conf):
-        txt = [self.START_DELM]
-        for port in conf.get_list(section, conf.OPEN_PORTS):
-            txt.append(self.IPF_OPEN_LINE % port)
-
-        # If we have restricted ports
-        restricted_ports = conf.get_list(section, conf.RESTRICTED_PORTS)
-        if restricted_ports:
-            # Get all the internals
-            internals = []
-            for section in conf.get_list(section, conf.ALLOWED_SECTIONS):
-                internals.extend(conf.get_list(section, conf.INTERNAL_IPS))
-
-            # Add a line for each port
-            for internal in internals:
-                for port in restricted_ports:
-                    txt.append(self.IPF_RESTRICTED_LINE % (internal, port))
-
-        txt.append(self.END_DELM)
-        return '\\n'.join(txt)
-
-    def _save_to_file(self, section, text):
+    def _save_to_file(self, section, lines):
         file_path = self.get_section_path(section)
 
         new_path = file_path + '.bak'
@@ -109,7 +168,7 @@ class FirewallUpdate(Task):
                     print \"%s\"; \
                     while(getline>0){tmp2 = match($0, \"%s\"); if (tmp2) break;} \
                     next;} \
-                {print $0}}' %s > %s" %(self.START_DELM, text, self.END_DELM,
+                {print $0}}' %s > %s" %(lines[0], '\\n'.join(lines), lines[-1],
                                         file_path, new_path)
         local(cmd)
         local('mv %s %s' %(new_path, file_path))
@@ -126,8 +185,9 @@ class FirewallUpdate(Task):
             sections = env.config_object.sections()
 
         for s in sections:
-            text = self._get_config_text(s, env.config_object)
-            self._save_to_file(s, text)
+            for ins in self.PROCESSORS:
+                lines = ins.get_config_list(s, env.config_object)
+                self._save_to_file(s, lines)
 
 update_files = FirewallUpdate()
 sync_single = FirewallSingleSync()

@@ -8,14 +8,30 @@ class CustomConfig(ConfigParser.ConfigParser):
     # Config settings
     CONNECTIONS = 'connections'
     INTERNAL_IPS = 'internal-ips'
+
+    #TCP
     OPEN_PORTS = 'open-ports'
+    EX_RESTRICTED_PORTS = 'ex-restricted-ports'
+    EX_ALLOWED_SECTIONS = 'ex-allowed-sections'
     RESTRICTED_PORTS = 'restricted-ports'
     ALLOWED_SECTIONS = 'allowed-sections'
+
+    # UDP
+    UDP_OPEN_PORTS = 'udp-open-ports'
+    UDP_EX_RESTRICTED_PORTS = 'udp-ex-restricted-ports'
+    UDP_EX_ALLOWED_SECTIONS = 'udp-ex-allowed-sections'
+    UDP_RESTRICTED_PORTS = 'udp-restricted-ports'
+    UDP_ALLOWED_SECTIONS = 'udp-allowed-sections'
+
+    # Postgres
     USERNAME = 'username'
     REPLICATOR = 'replicator'
     REPLICATOR_PASS = 'replicator-password'
+
+    # GIT
     GIT_SYNC = 'git-sync'
 
+    # Amazon
     EC2_KEY_NAME = 'ec2-key-name'
     EC2_KEY_FILE = 'ec2-key-file'
 

@@ -55,6 +55,8 @@ def get_remote_name(host, prefix, name=None):
 
     if not host in env.git_reverse:
         count = len(env.git_reverse)
+        if name:
+            return name
 
         while True:
             if not name or name in env.git_remotes:

@@ -96,9 +96,8 @@ class FirewallUpdate(Task):
                 for port in restricted_ports:
                     txt.append(self.IPF_RESTRICTED_LINE % (internal, port))
 
-        if len(txt) > 1:
-            txt.append(self.END_DELM)
-            return '\\n'.join(txt)
+        txt.append(self.END_DELM)
+        return '\\n'.join(txt)
 
     def _save_to_file(self, section, text):
         file_path = self.get_section_path(section)

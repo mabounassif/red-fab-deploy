@@ -28,6 +28,8 @@ class AddGitRemote(Task):
 
         ssh_path = "ssh://%s/~/%s" % (user_and_host, env.git_repo_name)
         local('git remote add %s %s' % (remote_name, ssh_path))
+        env.git_remotes[remote_name] = user_and_host
+        env.git_reverse[user_and_host] = remote_name
 
 class RemoveGitRemote(Task):
     """

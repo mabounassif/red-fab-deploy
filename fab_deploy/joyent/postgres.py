@@ -49,9 +49,14 @@ class PostgresInstall(Task):
         'archive_mode':      "on" }
 
     def _get_data_dir(self, db_version):
+        # Try to get from svc first
+        output = run('svcprop -p config/data postgresql')
+        if output.stdout and exists(output.stdout, use_sudo=True):
+            return output.stdout
+
         data_path = os.path.join('/var', 'pgsql')
         data_version_path = os.path.join(data_path, 'data%s' %db_version)
-        if exists(data_version_path):
+        if exists(data_version_path, use_sudo=True):
             return data_version_path
         else:
             return os.path.join(data_path, 'data')
@@ -159,20 +164,21 @@ class PostgresInstall(Task):
         if not db_version:
             db_version = self.db_version
         db_version = ''.join(db_version.split('.')[:2])
-        data_dir = self._get_data_dir(db_version)
-        hba_conf= os.path.join(data_dir, 'pg_hba.conf')
 
         if not encrypt:
             encrypt = self.encrypt
 
         self._install_package(db_version=db_version)
+        data_dir = self._get_data_dir(db_version)
         archive_dir = self._setup_archive_dir(data_dir)
-        self.postgres_config['archive_command'] = ("'cp %s %s/wal_archive/%s'"
+
+        config = dict(self.postgres_config)
+        config['archive_command'] = ("'cp %s %s/wal_archive/%s'"
                                                    %('%p', data_dir, '%f'))
 
         self._setup_hba_config(data_dir, encrypt)
         self._setup_postgres_config(data_dir=data_dir,
-                                    config=self.postgres_config)
+                                    config=config)
         self._restart_db_server(db_version)
         self._setup_ssh_key()
         self._create_user(section)
@@ -257,12 +263,11 @@ class SlaveSetup(PostgresInstall):
         replicator_pass = self._get_replicator_pass()
 
         db_version = self._get_master_db_version(master=master)
-        data_dir = self._get_data_dir(db_version)
         slave = env.host_string
         slave_ip = slave.split('@')[1]
-        hba_conf= os.path.join(data_dir, 'pg_hba.conf')
 
         self._install_package(db_version=db_version)
+        data_dir = self._get_data_dir(db_version)
         sudo('svcadm disable postgresql')
 
         self._setup_ssh_key()

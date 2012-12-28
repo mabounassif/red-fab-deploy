@@ -6,7 +6,6 @@ from fab_deploy.config import CustomConfig
 from fabric.api import run, sudo, env, put, execute, local
 from fabric.tasks import Task
 
-DEFAULT_CONF_FILE = 'ipf/ipf.conf'
 
 class FirewallSingleSync(Task):
     """
@@ -137,23 +136,26 @@ class FirewallUpdate(Task):
 
     name = 'update_files'
     serial = True
+    directory = 'ipf'
+    filename = 'ipf.conf'
+
     PROCESSORS = (UDPOptions(), TCPOptions())
 
     def _get_project_config_filepath(self, section):
-        return "ipf/%s.conf" % section
+        return os.path.join(self.directory, "%s.conf" % section)
 
     def get_section_path(self, section):
 
         file_path = functions.get_config_filepath(
                         self._get_project_config_filepath(section),
-                        DEFAULT_CONF_FILE
+                        os.path.join(self.directory, self.filename)
         )
 
         if not os.path.exists(file_path):
             path = os.path.dirname(file_path)
             local('mkdir -p %s' % path)
 
-            org = os.path.join(env.configs_dir, 'ipf.conf')
+            org = os.path.join(env.configs_dir, self.filename)
             local('cp %s %s' % (org, file_path))
 
         return file_path
@@ -181,8 +183,7 @@ class FirewallUpdate(Task):
         if section:
             sections = [section]
         else:
-            execute('local.config.update_internal_ips', hosts=[env.host_string])
-            sections = env.config_object.sections()
+            sections = env.config_object.server_sections()
 
         for s in sections:
             for ins in self.PROCESSORS:

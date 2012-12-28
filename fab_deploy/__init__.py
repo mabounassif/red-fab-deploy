@@ -56,7 +56,7 @@ def setup_env(project_path):
     env.config_object = config
 
     # Add sections to the roledefs
-    for section in config.sections():
+    for section in config.server_sections():
         if config.has_option(section, CustomConfig.CONNECTIONS):
             env.roledefs[section] = config.get_list(section, CustomConfig.CONNECTIONS)
 

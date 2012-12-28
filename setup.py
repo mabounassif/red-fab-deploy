@@ -37,7 +37,7 @@ setup(
         'fab_deploy.amazon',
 		'fab_deploy.local',
 		],
-	version = '0.0.7',
+	version = '0.0.8',
     author='RED Interactive Agency',
     author_email='geeks@ff0000.com',
 

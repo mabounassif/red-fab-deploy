@@ -39,7 +39,7 @@ class FirewallSync(Task):
         if section:
             sections = [section]
         else:
-            sections = conf.sections()
+            sections = conf.server_sections()
 
         for section in sections:
 

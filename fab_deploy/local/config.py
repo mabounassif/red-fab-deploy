@@ -19,7 +19,7 @@ class InternalIps(Task):
 
     def run(self):
         conf = env.config_object
-        for section in conf.sections():
+        for section in conf.server_sections():
             internals = conf.get_list(section, conf.INTERNAL_IPS)
             connections = conf.get_list(section, conf.CONNECTIONS)
             if len(internals) != len(connections):
@@ -63,7 +63,7 @@ class SyncGit(Task):
         config_remotes = {}
         conf = env.config_object
 
-        for section in conf.sections():
+        for section in conf.server_sections():
             if conf.has_option(section, conf.GIT_SYNC) and conf.getboolean(section, conf.GIT_SYNC):
                 for c in conf.get_list(section, conf.CONNECTIONS):
                     config_remotes[c] = section

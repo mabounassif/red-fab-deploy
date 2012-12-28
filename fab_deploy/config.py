@@ -55,3 +55,9 @@ class CustomConfig(ConfigParser.ConfigParser):
         fp = open(filename, 'w')
         self.write(fp)
         fp.close()
+
+    def server_sections(self, include_other=False):
+        sections = self.sections()
+        return [ x for x in sections \
+                if not self.has_option(x, 'is_server') or
+                    self.getboolean(x, 'is_server') ]

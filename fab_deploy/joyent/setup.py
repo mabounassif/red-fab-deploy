@@ -66,6 +66,12 @@ class BaseSetup(Task):
     def _save_config(self):
         env.config_object.save(env.conf_filename)
 
+    def _add_snmp(self, config_section):
+        execute('snmp.update_files', section=config_section)
+        task = functions.get_task_instance('snmp.update_files')
+        filename = task.get_section_path(config_section)
+        execute('snmp.sync_single', filename=filename)
+
     def _secure_ssh(self):
         # Change disable root and password
         # logins in /etc/ssh/sshd_config
@@ -82,7 +88,7 @@ class BaseSetup(Task):
         execute('firewall.sync_single', filename=filename)
 
         # Update any section where this section appears
-        for section in env.config_object.sections():
+        for section in env.config_object.server_sections():
             if config_section in env.config_object.get_list(section,
                                                 env.config_object.ALLOWED_SECTIONS):
                 execute('firewall.update_files', section=section)
@@ -140,6 +146,7 @@ class LBSetup(BaseSetup):
         self._set_profile()
         self._install_packages()
         self._setup_services()
+        self._add_snmp(self.config_section)
         self._update_firewalls(self.config_section)
         self._save_config()
 
@@ -212,6 +219,7 @@ class DBSetup(BaseSetup):
         self._update_config(self.config_section)
         self._secure_ssh()
         self._set_profile()
+        self._add_snmp(self.config_section)
         self._update_firewalls(self.config_section)
         dict = execute('postgres.master_setup', section=self.config_section,
                        save_config=True)
@@ -254,6 +262,7 @@ class SlaveSetup(DBSetup):
         master = self._get_master()
         self._secure_ssh()
         self._set_profile()
+        self._add_snmp(self.config_section)
         self._update_firewalls(self.config_section)
         execute('postgres.slave_setup', master=master,
                 section=self.config_section)

@@ -33,6 +33,8 @@ setup(
     name = 'red-fab-deploy',
     packages=[
 		'fab_deploy',
+		'fab_deploy.base',
+		'fab_deploy.ubuntu',
 		'fab_deploy.joyent',
         'fab_deploy.amazon',
 		'fab_deploy.local',

@@ -29,8 +29,10 @@ class FirewallSync(Task):
 
     def _get_lb_sg(self, **kwargs):
         elb_conn = get_ec2_connection(server_type='elb', **kwargs)
-        elb = elb_conn.get_all_load_balancers()[0]
-        return elb.source_security_group
+        elb = elb_conn.get_all_load_balancers()
+        if elb:
+            return elb[0].source_security_group
+        return None
 
     def run(self, section=None, **kwargs):
         conf = env.config_object
@@ -65,19 +67,19 @@ class FirewallSync(Task):
                     else:
                         guest_sg = get_security_group(conn, s)
 
-                    for port in restricted_ports:
-                        try:
-                            if s == 'load-balancer':
-                                conn.authorize_security_group(host_sg.name,
-                                      src_security_group_name='amazon-elb-sg',
-                                      src_security_group_owner_id='amazon-elb',
-                                      from_port=port, to_port=port,
-                                      ip_protocol='tcp')
-                            else:
-                                host_sg.authorize('tcp', port, port,
-                                                  src_group=guest_sg)
-
-                        except:
-                            pass
+                    if guest_sg:
+                        for port in restricted_ports:
+                            try:
+                                if s == 'load-balancer':
+                                    conn.authorize_security_group(host_sg.name,
+                                          src_security_group_name='amazon-elb-sg',
+                                          src_security_group_owner_id='amazon-elb',
+                                          from_port=port, to_port=port,
+                                          ip_protocol='tcp')
+                                else:
+                                    host_sg.authorize('tcp', port, port,
+                                                      src_group=guest_sg)
+                            except:
+                                pass
 
 firewall_sync = FirewallSync()

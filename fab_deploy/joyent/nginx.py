@@ -1,11 +1,24 @@
 import os
 
+from fab_deploy.base.nginx import NginxInstall
+from fab_deploy.base.setup import Control
+
 from fabric.api import run, sudo, env, local
 from fabric.tasks import Task
 
-DEFAULT_NGINX_CONF = "nginx/nginx.conf"
 
-class NginxInstall(Task):
+class NginxControl(Control):
+    def start(self):
+        run('svcadm enable nginx')
+
+    def stop(self):
+        run('svcadm disable nginx')
+
+    def restart(self):
+        run('svcadm restart nginx')
+
+
+class JNginxInstall(NginxInstall):
     """
     Install nginx
 
@@ -19,19 +32,6 @@ class NginxInstall(Task):
     Also sets up log rotation
     """
 
-    name = 'setup'
-
-    def run(self, nginx_conf=None, hosts=[]):
-        """
-        """
-        if not nginx_conf:
-           nginx_conf = DEFAULT_NGINX_CONF
-
-        self._install_package()
-        self._setup_logging()
-        self._setup_dirs()
-        self._setup_config(nginx_conf=nginx_conf)
-
     def _install_package(self):
         sudo("pkg_add nginx")
 
@@ -39,14 +39,6 @@ class NginxInstall(Task):
         sudo('sed -ie "s/^#nginx\(.*\)/nginx\\1/g" /etc/logadm.conf')
         sudo('logadm')
 
-    def _setup_dirs(self):
-        sudo('mkdir -p /var/www/cache-tmp')
-        sudo('mkdir -p /var/www/cache')
-        sudo('chown -R www:www /var/www')
-
-    def _setup_config(self, nginx_conf=None):
-        remote_conv = os.path.join(env.git_working_dir, 'deploy', nginx_conf)
-        sudo('ln -sf %s /opt/local/etc/nginx/nginx.conf' % remote_conv)
 
 class UpdateAppServers(Task):
     """
@@ -128,4 +120,5 @@ class UpdateAllowedIPs(UpdateAppServers):
 
 update_app_servers = UpdateAppServers()
 update_allowed_ips = UpdateAllowedIPs()
-setup = NginxInstall()
+setup = JNginxInstall()
+control = NginxControl()

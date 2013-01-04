@@ -149,9 +149,7 @@ class New(Task):
                   dev_server, or slave_db
     * **region**: default is us-west-1
     * **ami_id**: AMI ID
-    * **static_ip**: 'yes' or 'no'
-        by default, an elastic static ip will be allocated and associated with
-        the created instance.  Use 'no' to disable it.
+    * **static_ip**: Set to true to use. By default this is not used.
     """
 
     name = 'add_server'
@@ -218,7 +216,7 @@ class New(Task):
 
         conn.create_tags([instance.id], {"Name": name})
 
-        if kwargs.get('static_ip', '').lower() == 'no':
+        if not kwargs.get('static_ip', False):
             ip = instance.ip_address
         else:
             elastic_ip = conn.allocate_address()
@@ -236,10 +234,9 @@ class New(Task):
         print "...Instance ID: %s" % instance.id
         print "...Public IP: %s" % ip
 
-        host_string = 'ubuntu@%s' % ip
+        host_string = 'ubuntu@%s' % instance.public_dns_name
         execute(setup_name, name=name, hosts=[host_string])
 
 
 create_key = CreateKeyPair()
 add_server = New()
-

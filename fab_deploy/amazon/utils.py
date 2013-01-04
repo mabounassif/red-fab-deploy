@@ -9,6 +9,10 @@ def get_ip(interface, hosts=[]):
     """
     get IP address
     """
+    # for amazon we don't ips since they may change
+    if not interface:
+        return run('curl -s http://169.254.169.254/latest/meta-data/public-hostname')
+
     return run(get_ip_command(interface))
 
 
@@ -37,6 +41,6 @@ def get_security_group(conn, section):
         return groups[0]
     except:
         grp = conn.create_security_group(sg_name,
-                                             'security group for app-server')
+                                             'security group for %s' % section)
         grp.authorize('tcp', 22, 22, '0.0.0.0/0')
         return grp

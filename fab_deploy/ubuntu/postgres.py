@@ -3,45 +3,44 @@ import sys
 import tempfile
 
 from fabric.api import run, sudo, env, local, hide, settings
-from fabric.contrib.files import append, sed, exists, contains
-from fabric.context_managers import prefix
-from fabric.operations import get, put
-from fabric.context_managers import cd
+from fabric.contrib.files import append, exists
+from fabric.operations import put
 
 from fabric.tasks import Task
 
 from fab_deploy.functions import random_password
 from fab_deploy.base.postgres import PostgresInstall, SlaveSetup
 
-class JoyentMixin(object):
-    version_directory_join = ''
+class UbuntuMixin(object):
+    binary_path = '/var/lib/postgresql/bin/'
 
     def _get_data_dir(self, db_version):
-        # Try to get from svc first
-        output = run('svcprop -p config/data postgresql')
-        if output.stdout and exists(output.stdout, use_sudo=True):
-            return output.stdout
-        return PostgresInstall._get_data_dir(self, db_version)
+        return os.path.join('/var/lib/postgresql', '%s' % db_version, 'main')
+
+    def _get_config_dir(self, db_version, data_dir):
+        return os.path.join('/etc/postgresql', '%s' % db_version, 'main')
 
     def _install_package(self, db_version):
-        sudo("pkg_add postgresql%s-server" %db_version)
-        sudo("pkg_add postgresql%s-replicationtools" %db_version)
-        sudo("svcadm enable postgresql")
+        sudo("apt-get -y install postgresql")
+        sudo("apt-get -y install postgresql-contrib")
 
     def _restart_db_server(self, db_version):
-        sudo('svcadm restart postgresql')
+        sudo('service postgresql restart')
 
     def _stop_db_server(self, db_version):
-        sudo('svcadm disable postgresql')
+        sudo('service postgresql stop')
 
     def _start_db_server(self, db_version):
-        sudo('svcadm enable postgresql')
+        sudo('service postgresql start')
 
-class JPostgresInstall(JoyentMixin, PostgresInstall):
+class UPostgresInstall(UbuntuMixin, PostgresInstall):
     """
-    Install postgresql on server
+    Install postgresql on server.
 
-    install postgresql package;
+    This task gets executed inside other tasks, including
+    setup.db_server, setup.slave_db and setup.dev_server
+
+    install postgresql package, and set up access policy in pg_hba.conf.
     enable postgres access from localhost without password;
     enable all other user access from other machines with password;
     setup a few parameters related with streaming replication;
@@ -52,12 +51,14 @@ class JPostgresInstall(JoyentMixin, PostgresInstall):
     name = 'master_setup'
     db_version = '9.1'
 
-class JSlaveSetup(JoyentMixin, SlaveSetup):
+
+class USlaveSetup(UbuntuMixin, SlaveSetup):
     """
     Set up master-slave streaming replication: slave node
     """
 
     name = 'slave_setup'
+
 
 class PGBouncerInstall(Task):
     """
@@ -66,19 +67,17 @@ class PGBouncerInstall(Task):
 
     name = 'setup_pgbouncer'
 
-    pgbouncer_src = 'http://pkgsrc.smartos.org/packages/SmartOS/2012Q2/databases/pgbouncer-1.4.2.tgz'
-    pkg_name = 'pgbouncer-1.4.2.tgz'
-    config_dir = '/etc/opt/pkg'
+    config_dir = '/etc/pgbouncer'
 
     config = {
         '*':              'host=127.0.0.1',
         'logfile':        '/var/log/pgbouncer/pgbouncer.log',
-        'pidfile':        '/var/pgsql/pgbouncer/pgbouncer.pid',
+        'pidfile':        '/var/run/pgbouncer/pgbouncer.pid',
         'listen_addr':    '*',
         'listen_port':    '6432',
-        'unix_socket_dir': '/tmp',
+        'unix_socket_dir': '/var/run/postgresql',
         'auth_type':      'md5',
-        'auth_file':      '%s/pgbouncer.userlist' %config_dir,
+        'auth_file':      '%s/pgbouncer.userlist' % config_dir,
         'pool_mode':      'session',
         'admin_users':    'postgres',
         'stats_users':    'postgres',
@@ -86,15 +85,15 @@ class PGBouncerInstall(Task):
 
     def _setup_parameter(self, file, **kwargs):
         for key, value in kwargs.items():
-            origin = "%s =" %key
-            new = "%s = %s" %(key, value)
-            sudo('sed -i "/%s/ c\%s" %s' %(origin, new, file))
+            origin = "%s =" % key
+            new = "%s = %s" % (key, value)
+            sudo('sed -i "/%s/ c\%s" %s' % (origin, new, file))
 
     def _get_passwd(self, username):
         with hide('output'):
             string = run('echo "select usename, passwd from pg_shadow where '
                          'usename=\'%s\' order by 1" | sudo su postgres -c '
-                         '"psql"' %username)
+                         '"psql"' % username)
 
         user, passwd = string.split('\n')[2].split('|')
         user = user.strip()
@@ -102,10 +101,10 @@ class PGBouncerInstall(Task):
 
         __, tmp_name = tempfile.mkstemp()
         fn = open(tmp_name, 'w')
-        fn.write('"%s" "%s" ""\n' %(user, passwd))
+        fn.write('"%s" "%s" ""\n' % (user, passwd))
         fn.close()
-        put(tmp_name, '%s/pgbouncer.userlist'%self.config_dir, use_sudo=True)
-        local('rm %s' %tmp_name)
+        put(tmp_name, '%s/pgbouncer.userlist' % self.config_dir, use_sudo=True)
+        local('rm %s' % tmp_name)
 
     def _get_username(self, section=None):
         try:
@@ -120,41 +119,24 @@ class PGBouncerInstall(Task):
     def run(self, section=None):
         """
         """
+        sudo('apt-get -y install pgbouncer')
 
-        sudo('pkg_add libevent')
-        sudo('mkdir -p /opt/pkg/bin')
-        sudo("ln -sf /opt/local/bin/awk /opt/pkg/bin/nawk")
-        sudo("ln -sf /opt/local/bin/sed /opt/pkg/bin/nbsed")
-
-        with cd('/tmp'):
-            run('wget %s' %self.pgbouncer_src)
-            sudo('pkg_add %s' %self.pkg_name)
-
-        svc_method = os.path.join(env.configs_dir, 'pgbouncer.xml')
-        put(svc_method, self.config_dir, use_sudo=True)
-
-        self._setup_parameter('%s/pgbouncer.ini' %self.config_dir, **self.config)
+        self._setup_parameter('%s/pgbouncer.ini' % self.config_dir, **self.config)
 
         if not section:
             section = 'db-server'
         username = self._get_username(section)
         self._get_passwd(username)
         # postgres should be the owner of these config files
-        sudo('chown -R postgres:postgres %s' %self.config_dir)
+        sudo('chown -R postgres:postgres %s' % self.config_dir)
 
         # pgbouncer won't run smoothly without these directories
-        sudo('mkdir -p /var/pgsql/pgbouncer')
+        sudo('mkdir -p /var/run/pgbouncer')
         sudo('mkdir -p /var/log/pgbouncer')
-        sudo('chown postgres:postgres /var/pgsql/pgbouncer')
+        sudo('chown postgres:postgres /var/run/pgbouncer')
         sudo('chown postgres:postgres /var/log/pgbouncer')
 
-        # set up log
-        sudo('logadm -C 3 -p1d -c -w /var/log/pgbouncer/pgbouncer.log -z 1')
-        run('svccfg import %s/pgbouncer.xml' %self.config_dir)
-
         # start pgbouncer
-        sudo('svcadm enable pgbouncer')
-
-setup = JPostgresInstall()
-slave_setup = JSlaveSetup()
-setup_pgbouncer = PGBouncerInstall()
+        pgbouncer_control_file = '/etc/default/pgbouncer'
+        sudo("sed -i 's/START=0/START=1/' %s" %pgbouncer_control_file)
+        sudo('service pgbouncer start')

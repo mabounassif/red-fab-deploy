@@ -1,4 +1,5 @@
-from fab_deploy.ubuntu.git import UbuntuInstall, UpdateHook
+from fab_deploy.ubuntu.git import Install
+from fab_deploy.base.git import UpdateHook
 
-setup = UbuntuInstall()
+setup = Install()
 update_hook = UpdateHook()

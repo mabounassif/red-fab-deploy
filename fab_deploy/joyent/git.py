@@ -1,9 +1,9 @@
-from fab_deploy.base.git import Install, UpdateHook
+from fab_deploy.base import git as base_git
 from fabric.api import run, sudo, env
 
-class JoyentInstall(Install):
+class Install(base_git.Install):
     def _install_package(self):
         sudo("pkg_add scmgit")
 
-setup = JoyentInstall()
-update_hook = UpdateHook()
+setup = Install()
+update_hook = base_git.UpdateHook()

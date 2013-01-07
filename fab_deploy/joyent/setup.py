@@ -1,6 +1,6 @@
 from fabric.api import run
 
-from fab_deploy.base.setup import *
+from fab_deploy.base import setup as base_setup
 
 
 class JoyentMixin(object):
@@ -18,23 +18,23 @@ class AppMixin(JoyentMixin):
         sudo('easy_install-2.7 pip')
         self._install_venv()
 
-class JLBSetup(JoyentMixin, LBSetup):
+class LBSetup(JoyentMixin, base_setup.LBSetup):
     pass
 
-class JAppSetup(AppMixin, AppSetup):
+class AppSetup(AppMixin, base_setup.AppSetup):
     pass
 
-class JDBSetup(JoyentMixin, DBSetup):
+class DBSetup(JoyentMixin, base_setup.DBSetup):
     pass
 
-class JSlaveSetup(JoyentMixin, SlaveSetup):
+class SlaveSetup(JoyentMixin, base_setup.SlaveSetup):
     pass
 
-class JDevSetup(AppMixin, DevSetup):
+class DevSetup(AppMixin, base_setup.DevSetup):
     pass
 
-app_server = JAppSetup()
-lb_server = JLBSetup()
-dev_server = JDevSetup()
-db_server = JDBSetup()
-slave_db = JSlaveSetup()
+app_server = AppSetup()
+lb_server = LBSetup()
+dev_server = DevSetup()
+db_server = DBSetup()
+slave_db = SlaveSetup()

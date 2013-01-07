@@ -11,7 +11,7 @@ from fabric.context_managers import cd
 from fabric.tasks import Task
 
 from fab_deploy.functions import random_password
-from fab_deploy.base.postgres import PostgresInstall, SlaveSetup
+from fab_deploy.base import postgres as base_postgres
 
 class JoyentMixin(object):
     version_directory_join = ''
@@ -37,7 +37,7 @@ class JoyentMixin(object):
     def _start_db_server(self, db_version):
         sudo('svcadm enable postgresql')
 
-class JPostgresInstall(JoyentMixin, PostgresInstall):
+class PostgresInstall(JoyentMixin, base_postgres.PostgresInstall):
     """
     Install postgresql on server
 
@@ -52,7 +52,7 @@ class JPostgresInstall(JoyentMixin, PostgresInstall):
     name = 'master_setup'
     db_version = '9.1'
 
-class JSlaveSetup(JoyentMixin, SlaveSetup):
+class SlaveSetup(JoyentMixin, base_postgres.SlaveSetup):
     """
     Set up master-slave streaming replication: slave node
     """
@@ -155,6 +155,6 @@ class PGBouncerInstall(Task):
         # start pgbouncer
         sudo('svcadm enable pgbouncer')
 
-setup = JPostgresInstall()
-slave_setup = JSlaveSetup()
+setup = PostgresInstall()
+slave_setup = SlaveSetup()
 setup_pgbouncer = PGBouncerInstall()

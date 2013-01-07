@@ -1,13 +1,13 @@
 import os
 
-from fab_deploy.base.nginx import NginxInstall
+from fab_deploy.base import nginx as base_nginx
 from fab_deploy.base.setup import Control
 
 from fabric.api import sudo, env, local
 from fabric.tasks import Task
 
 
-class UNginxInstall(NginxInstall):
+class NginxInstall(base_nginx.NginxInstall):
     """
     Install nginx
 

@@ -1,11 +1,11 @@
 import os
 
-from fab_deploy.base.gunicorn import GunicornInstall, Control
+from fab_deploy.base import gunicorn as base_gunicorn
 
 from fabric.api import run, sudo, env
 from fabric.tasks import Task
 
-class GunicornControl(Control):
+class GunicornControl(base_gunicorn.Control):
 
     def start(self):
         run('svcadm enable %s' % self.get_name())
@@ -16,7 +16,7 @@ class GunicornControl(Control):
     def restart(self):
         run('svcadm restart %s' % self.get_name())
 
-class JGunicornInstall(GunicornInstall):
+class GunicornInstall(base_gunicorn.GunicornInstall):
     """
     Install gunicorn and set it up with svcadm.
     """
@@ -36,5 +36,5 @@ class JGunicornInstall(GunicornInstall):
         sudo('logadm -C 3 -p1d -c -w %s -z 1' % path)
 
 
-setup = JGunicornInstall()
+setup = GunicornInstall()
 control = GunicornControl()

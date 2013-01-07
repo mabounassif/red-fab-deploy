@@ -9,7 +9,7 @@ from fabric.operations import put
 from fabric.tasks import Task
 
 from fab_deploy.functions import random_password
-from fab_deploy.base.postgres import PostgresInstall, SlaveSetup
+from fab_deploy.base import postgres as base_postgres
 
 class UbuntuMixin(object):
     binary_path = '/var/lib/postgresql/bin/'
@@ -33,7 +33,7 @@ class UbuntuMixin(object):
     def _start_db_server(self, db_version):
         sudo('service postgresql start')
 
-class UPostgresInstall(UbuntuMixin, PostgresInstall):
+class PostgresInstall(UbuntuMixin, base_postgres.PostgresInstall):
     """
     Install postgresql on server.
 
@@ -52,7 +52,7 @@ class UPostgresInstall(UbuntuMixin, PostgresInstall):
     db_version = '9.1'
 
 
-class USlaveSetup(UbuntuMixin, SlaveSetup):
+class SlaveSetup(UbuntuMixin, base_postgres.SlaveSetup):
     """
     Set up master-slave streaming replication: slave node
     """

@@ -3,7 +3,7 @@ from fabric.api import run, sudo, execute, env
 from fabric.tasks import Task
 
 from fab_deploy import functions
-from fab_deploy.base.setup import *
+from fab_deploy.base import setup as base_setup
 
 class UbuntuMixin(object):
     serial = True
@@ -23,16 +23,16 @@ class AppMixin(UbuntuMixin):
             sudo('apt-get -y install  %s' % package)
         self._install_venv()
 
-class UAppSetup(AppMixin, AppSetup):
+class AppSetup(AppMixin, base_setup.AppSetup):
 
     def _modify_others(self):
         pass
 
-class UDBSetup(UbuntuMixin, DBSetup):
+class DBSetup(UbuntuMixin, base_setup.DBSetup):
     pass
 
-class USlaveSetup(UbuntuMixin, SlaveSetup):
+class SlaveSetup(UbuntuMixin, base_setup.SlaveSetup):
     pass
 
-class UDevSetup(AppMixin, DevSetup):
+class DevSetup(AppMixin, base_setup.DevSetup):
     pass

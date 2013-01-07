@@ -1,6 +1,6 @@
 import os
 
-from fab_deploy.ubuntu.gunicorn import UGunicornInstall, GunicornControl
+from fab_deploy.ubuntu.gunicorn import GunicornInstall, GunicornControl
 
-setup = UGunicornInstall()
+setup = GunicornInstall()
 control = GunicornControl()

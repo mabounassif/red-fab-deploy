@@ -1,4 +1,4 @@
-from fab_deploy.ubuntu.nginx import UNginxInstall, NginxControl
+from fab_deploy.ubuntu.nginx import NginxInstall, NginxControl
 
-setup = UNginxInstall()
+setup = NginxInstall()
 control = NginxControl()

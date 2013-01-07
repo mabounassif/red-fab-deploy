@@ -1,5 +1,5 @@
-from fab_deploy.ubuntu.postgres import UPostgresInstall, USlaveSetup, PGBouncerInstall
+from fab_deploy.ubuntu.postgres import PostgresInstall, SlaveSetup, PGBouncerInstall
 
-setup = UPostgresInstall()
-slave_setup = USlaveSetup()
+setup = PostgresInstall()
+slave_setup = SlaveSetup()
 setup_pgbouncer = PGBouncerInstall()

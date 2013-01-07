@@ -1,6 +1,6 @@
 import os
 
-from fab_deploy.base.nginx import NginxInstall
+from fab_deploy.base import nginx as base_nginx
 from fab_deploy.base.setup import Control
 
 from fabric.api import run, sudo, env, local
@@ -18,7 +18,7 @@ class NginxControl(Control):
         run('svcadm restart nginx')
 
 
-class JNginxInstall(NginxInstall):
+class NginxInstall(base_nginx.NginxInstall):
     """
     Install nginx
 
@@ -120,5 +120,5 @@ class UpdateAllowedIPs(UpdateAppServers):
 
 update_app_servers = UpdateAppServers()
 update_allowed_ips = UpdateAllowedIPs()
-setup = JNginxInstall()
+setup = NginxInstall()
 control = NginxControl()

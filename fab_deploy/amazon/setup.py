@@ -8,7 +8,7 @@ from fab_deploy.ubuntu.setup import *
 from api import get_ec2_connection
 
 
-class ULBSetup(Task):
+class LBSetup(Task):
     """
     Set up load balancer
 
@@ -104,8 +104,8 @@ class ULBSetup(Task):
         elb.configure_health_check(hc)
 
 
-app_server = UAppSetup()
-dev_server = UDevSetup()
-db_server = UDBSetup()
-slave_db = USlaveSetup()
-lb_server = ULBSetup()
+app_server = AppSetup()
+dev_server = DevSetup()
+db_server = DBSetup()
+slave_db = SlaveSetup()
+lb_server = LBSetup()

@@ -28,7 +28,7 @@ class GunicornInstall(base_gunicorn.GunicornInstall):
 
         run('svccfg import %s' % path)
         if env_value:
-            run('svccfg -s %s setenv %s %s' % (gunicorn_name,
+            run('svccfg -s %s setenv %s %s' % (self.gunicorn_name,
                                                env.project_env_var,
                                                env_value))
 

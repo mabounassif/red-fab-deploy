@@ -1,5 +1,21 @@
 from fabric.api import sudo, run, env
 from fabric.tasks import Task
+from fab_deploy.base import setup
+
+
+class GunicornControl(setup.Control):
+
+    name = 'celeryd'
+
+    def start(self):
+        run('svcadm enable %s' % self.name)
+
+    def stop(self):
+        run('svcadm disable %s' % self.name)
+
+    def restart(self):
+        run('svcadm restart %s' % self.name)
+
 
 class CeleryInstall(Task):
     """

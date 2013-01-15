@@ -3,7 +3,7 @@ from fabric.tasks import Task
 from fab_deploy.base import setup
 
 
-class GunicornControl(setup.Control):
+class CeleryControl(setup.Control):
 
     name = 'celeryd'
 
@@ -38,3 +38,4 @@ class CeleryInstall(Task):
         sudo('svcadm enable celeryd')
 
 setup = CeleryInstall()
+control = CeleryControl()

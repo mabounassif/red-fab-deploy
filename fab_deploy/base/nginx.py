@@ -49,7 +49,8 @@ class NginxInstall(Task):
     def _setup_config(self, nginx_conf=None, directory=None):
         remote_conv = os.path.join(env.git_working_dir, 'deploy', nginx_conf)
         if directory:
-            remote_config_path = os.path.join(directory, nginx_conf)
+            name = nginx_conf.split('/')[-1]
+            remote_config_path = os.path.join(directory, name)
         else:
             remote_config_path = self.remote_config_path
         sudo('ln -sf %s %s' % (remote_conv, remote_config_path))

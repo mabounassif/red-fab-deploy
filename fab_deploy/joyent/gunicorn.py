@@ -23,12 +23,12 @@ class GunicornInstall(base_gunicorn.GunicornInstall):
 
     def _setup_service(self, env_value=None):
         path = os.path.join(env.git_working_dir, 'deploy',
-                            self.gunicorn_name,
+                            'gunicorn',
                             '%s.xml' % self.gunicorn_name)
 
         run('svccfg import %s' % path)
         if env_value:
-            run('svccfg -s %s setenv %s %s' % (gunicorn_name,
+            run('svccfg -s %s setenv %s %s' % (self.gunicorn_name,
                                                env.project_env_var,
                                                env_value))
 

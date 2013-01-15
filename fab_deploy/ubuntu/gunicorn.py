@@ -32,7 +32,7 @@ class GunicornInstall(base_gunicorn.GunicornInstall):
         conf_file = '/etc/supervisor/supervisord.conf'
 
         gunicorn_conf = os.path.join(env.git_working_dir, 'deploy',
-                                     self.gunicorn_name,
+                                     'gunicorn',
                                      'supervisor_%s.conf' % self.gunicorn_name )
 
         text = 'files = %s' % gunicorn_conf

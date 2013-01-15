@@ -146,14 +146,15 @@ class LBSetup(BaseSetup):
         execute('local.git.reset_remote')
 
     def run(self, name=None):
+        self._secure_ssh()
+        self._set_profile()
+
         self._update_config(self.config_section)
 
         self._add_remote(name=name)
 
         # Transfer files first so all configs are in place.
         self._transfer_files()
-        self._secure_ssh()
-        self._set_profile()
         self._install_packages()
         self._setup_services()
         self._add_snmp(self.config_section)
@@ -223,9 +224,10 @@ class DBSetup(BaseSetup):
     config_section = 'db-server'
 
     def run(self, name=None):
-        self._update_config(self.config_section)
         self._secure_ssh()
         self._set_profile()
+
+        self._update_config(self.config_section)
         self._add_snmp(self.config_section)
         self._update_firewalls(self.config_section)
         dict = execute('postgres.master_setup', section=self.config_section,
@@ -267,10 +269,11 @@ class SlaveSetup(DBSetup):
     def run(self, name=None):
         """
         """
-        self._update_config(self.config_section)
-        master = self._get_master()
         self._secure_ssh()
         self._set_profile()
+
+        self._update_config(self.config_section)
+        master = self._get_master()
         self._add_snmp(self.config_section)
         self._update_firewalls(self.config_section)
         execute('postgres.slave_setup', master=master,
@@ -290,6 +293,7 @@ class DevSetup(AppSetup):
     name = 'dev_server'
     config_section = 'dev-server'
     settings_host = config_section
+    git_branch = 'develop'
 
     def _modify_others(self):
         pass
@@ -321,9 +325,3 @@ class Control(Task):
             self.restart()
         else:
             self.start()
-
-app_server = AppSetup()
-lb_server = LBSetup()
-dev_server = DevSetup()
-db_server = DBSetup()
-slave_db = SlaveSetup()

@@ -24,12 +24,13 @@ class GunicornInstall(Task):
     log_dir = '/var/log/gunicorn'
 
     gunicorn_name = 'gunicorn'
+    log_name = 'django.log'
 
     def _setup_service(self, env_value=None):
         raise NotImplementedError()
 
     def _setup_logs(self):
-        path = os.path.join(self.log_dir, 'django.log')
+        path = os.path.join(self.log_dir, self.log_name)
         sudo('mkdir -p %s' % self.log_dir)
         sudo('touch %s' % path)
         sudo('chown -R %s:%s %s' % (self.user, self.group, self.log_dir))

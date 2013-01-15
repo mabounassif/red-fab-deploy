@@ -9,3 +9,4 @@ import manage
 import api
 import snmp
 import celery
+import solr

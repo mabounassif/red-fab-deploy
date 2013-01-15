@@ -24,7 +24,7 @@ class NginxInstall(Task):
     user = 'www'
     group = 'www'
 
-    def run(self, nginx_conf=None, hosts=[]):
+    def run(self, nginx_conf=None, directory=None, hosts=[]):
         """
         """
         if not nginx_conf:
@@ -33,7 +33,7 @@ class NginxInstall(Task):
         self._install_package()
         self._setup_logging()
         self._setup_dirs()
-        self._setup_config(nginx_conf=nginx_conf)
+        self._setup_config(nginx_conf=nginx_conf, directory=directory)
 
     def _install_package(self):
         raise NotImplementedError()
@@ -46,6 +46,10 @@ class NginxInstall(Task):
         sudo('mkdir -p /var/www/cache')
         sudo('chown -R %s:%s /var/www' % (self.user, self.group))
 
-    def _setup_config(self, nginx_conf=None):
+    def _setup_config(self, nginx_conf=None, directory=None):
         remote_conv = os.path.join(env.git_working_dir, 'deploy', nginx_conf)
-        sudo('ln -sf %s %s' % (remote_conv, self.remote_config_path))
+        if directory:
+            remote_config_path = os.path.join(directory, nginx_conf)
+        else:
+            remote_config_path = self.remote_config_path
+        sudo('ln -sf %s %s' % (remote_conv, remote_config_path))

@@ -143,6 +143,13 @@ class PostgresInstall(Task):
         db_out = run("echo '\du replicator' | sudo su postgres -c 'psql'")
         if 'replicator' not in db_out:
             replicator_pass = random_password(12)
+            if env.config_object.has_option(section,
+                            env.config_object.REPLICATOR_PASS):
+                pw = env.config_object.get(section,
+                            env.config_object.REPLICATOR_PASS)
+                if pw:
+                    replicator_pass = pw
+
 
             c1 = ('CREATE USER replicator REPLICATION LOGIN ENCRYPTED '
                   'PASSWORD \"\'%s\'\"' %replicator_pass)

@@ -321,9 +321,3 @@ class Control(Task):
             self.restart()
         else:
             self.start()
-
-app_server = AppSetup()
-lb_server = LBSetup()
-dev_server = DevSetup()
-db_server = DBSetup()
-slave_db = SlaveSetup()

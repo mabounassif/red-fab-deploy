@@ -314,6 +314,3 @@ class SlaveSetup(PostgresInstall):
 
         self._start_db_server(db_version)
         print('password for replicator on master node is %s' % replicator_pass)
-
-setup = PostgresInstall()
-slave_setup = SlaveSetup()

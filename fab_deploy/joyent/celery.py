@@ -5,20 +5,20 @@ from fab_deploy.base import celery as base_celery
 class CeleryControl(base_celery.Control):
 
     def start(self):
-        run('svcadm enable %s' % self.name)
+        run('svcadm enable %s' % self.get_name())
 
     def stop(self):
-        run('svcadm disable %s' % self.name)
+        run('svcadm disable %s' % self.get_name())
 
     def restart(self):
-        run('svcadm restart %s' % self.name)
+        run('svcadm restart %s' % self.get_name())
 
 
 class CeleryInstall(base_celery.CeleryInstall):
     """
     Install Celery and set it up with svcadm.
     """
-    name = 'setup_celery'
+    name = 'setup'
 
     def _setup_service(self, env_value=None):
         run('svccfg import /srv/active/deploy/celery/celeryd.xml')

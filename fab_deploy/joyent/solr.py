@@ -1,5 +1,5 @@
 import os, time
-from fabric.api import run, sudo, local, env, put
+from fabric.api import run, sudo, local, env, put, settings
 from fabric.tasks import Task
 from fab_deploy.base.setup import Control
 
@@ -21,6 +21,7 @@ class SolrInstall(Task):
     """
 
     name = 'setup_solr'
+    solr_download_link = 'http://mirrors.sonic.net/apache/lucene/solr/3.6.1/apache-solr-3.6.1.tgz'
 
     def run(self):
         self._getPackages()
@@ -32,9 +33,7 @@ class SolrInstall(Task):
 
     def _getPackages(self):
         #download all packages necessary for solr and tomcat
-        #sudo('wget http://apache.claz.org/lucene/solr/3.6.1/apache-solr-3.6.1.tgz')
-        sudo('wget http://apache.tradebit.com/pub/lucene/solr/3.6.1/apache-solr-3.6.1.tgz') # Alternate download link
-        
+        sudo('wget %s' % self.solr_download_link) 
         sudo('pkg_add sun-jre6')
         sudo('pkg_add sun-jdk6')
         sudo('pkg_add apache-ant')
@@ -43,7 +42,7 @@ class SolrInstall(Task):
         sudo('pkg_add apache-tomcat')
 
     def _configSolr(self):
-        #all ant build stuff and config setup
+        #configure  solr based on example dir
         run('tar xf apache-solr-3.6.1.tgz')
         sudo('mv apache-solr-3.6.1 /opt/')
         sudo('cp /opt/apache-solr-3.6.1/dist/apache-solr-3.6.1.war /opt/apache-solr-3.6.1/example/webapps/')
@@ -58,9 +57,17 @@ class SolrInstall(Task):
 
         sudo("sed -ie 's,solr.data.dir\:,solr.data.dir\:/opt/solr/solr/data,g' /opt/solr/solr/conf/solrconfig.xml")
         sudo('cp /opt/solr/solr.war /opt/local/share/tomcat/webapps/')
-        sudo('bash /opt/local/share/tomcat/bin/startup.sh')
-        time.sleep(5) # need to wait for files to get made by startup script.
-        sudo("sed -ie 's,/put/your/solr/home/here,/opt/solr/solr,g' /opt/local/share/tomcat/webapps/solr/WEB-INF/web.xml")
+        sudo('bash /opt/local/share/tomcat/bin/startup.sh', pty=False)
+
+        # keep trying to edit the file until startup.sh does its job
+        with settings(warn_only=True):
+            result = sudo("sed -ie 's,/put/your/solr/home/here,/opt/solr/solr,g' /opt/local/share/tomcat/webapps/solr/WEB-INF/web.xml")
+            attempts = 0
+            max_attempts = 10
+            while result.return_code != 0 and attempts < max_attempts:
+                result = sudo("sed -ie 's,/put/your/solr/home/here,/opt/solr/solr,g' /opt/local/share/tomcat/webapps/solr/WEB-INF/web.xml")
+
+
         sudo("sed -ie '36d;42d' /opt/local/share/tomcat/webapps/solr/WEB-INF/web.xml")
         sudo('bash /opt/local/share/tomcat/bin/shutdown.sh')
 
@@ -76,7 +83,7 @@ class SyncSchema(Task):
         run('svcadm disable tomcat')
         project_path = os.path.join(env.project_path, 'project')
         manage_path = os.path.join(project_path, 'manage.py')
-        schema_path = os.path.join(project_path, 'schema.xml')
+        schema_path = os.path.join(project_path,  'schema.xml')
 
         local('python %s build_solr_schema > %s' % (manage_path, schema_path))
         put(local_path=schema_path, remote_path='/opt/solr/solr/conf/schema.xml', use_sudo=True)

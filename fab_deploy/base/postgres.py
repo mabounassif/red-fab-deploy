@@ -321,3 +321,24 @@ class SlaveSetup(PostgresInstall):
 
         self._start_db_server(db_version)
         print('password for replicator on master node is %s' % replicator_pass)
+
+class Backups(Task):
+    path = '/backups/dbs'
+    name = 'setup_backups'
+
+    def run(self, path=None, **kwargs):
+        if not path:
+            path = self.path
+
+        script = os.path.join(env.configs_dir, 'pg_backup.sh')
+        sudo('mkdir -p %s' % path)
+        sudo('chown postgres:postgres %s' % path)
+
+        online_path = os.path.join(path, 'pg_backup.sh')
+        put(script, online_path, use_sudo=True)
+        sudo('sed -i s#BACKUPDIR=.*#BACKUPDIR=%s#g %s' % (path, online_path))
+        sudo('chmod +x %s' % online_path)
+
+        bash = run('which bash')
+        append('/tmp/pg_cron','0 0 * * *         %s %s' % (bash, online_path))
+        run('sudo su postgres -c "crontab < /tmp/pg_cron"')

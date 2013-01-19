@@ -1,4 +1,4 @@
-import os, sys
+import os
 from fabric.api import run, sudo, local, env, put, settings
 from fabric.tasks import Task
 from fab_deploy.base.setup import Control
@@ -69,7 +69,7 @@ class SolrInstall(Task):
 
             if attempts >= max_attempts:
                 sudo('bash /opt/local/share/tomcat/bin/shutdown.sh', pty=False)
-                sys.exit('startup.sh failed to create necessary files.')
+                raise Exception('startup.sh failed to create necessary files.')
 
 
         sudo("sed -ie '36d;42d' /opt/local/share/tomcat/webapps/solr/WEB-INF/web.xml")

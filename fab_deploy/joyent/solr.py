@@ -69,11 +69,20 @@ class SolrInstall(Task):
 
             if attempts >= max_attempts:
                 sudo('bash /opt/local/share/tomcat/bin/shutdown.sh', pty=False)
+                self._cleanUpFailure()
                 raise Exception('startup.sh failed to create necessary files.')
 
 
         sudo("sed -ie '36d;42d' /opt/local/share/tomcat/webapps/solr/WEB-INF/web.xml")
         sudo('bash /opt/local/share/tomcat/bin/shutdown.sh')
+
+
+    def _cleanUpFailure(self):
+        with settings(warn_only=True):
+            sudo('rm -r apache-solr-3.6.1.tgz')
+            sudo('rm -r /opt/apache-solr-3.6.1/')
+            sudo('rm -r /opt/solr/')
+            sudo('rm -r /opt/local/share/tomcat/webapps/solr/')
 
 
 class SyncSchema(Task):

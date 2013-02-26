@@ -54,9 +54,11 @@ def get_remote_name(host, prefix, name=None):
     assert prefix
 
     if not host in env.git_reverse:
-        count = len(env.git_reverse)
         if name:
             return name
+
+        count = len([x for x in env.git_remotes if x.startswith(prefix)])
+        count = count + 1
 
         while True:
             if not name or name in env.git_remotes:

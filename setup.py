@@ -34,12 +34,13 @@ setup(
     packages=[
 		'fab_deploy',
 		'fab_deploy.base',
+		'fab_deploy.red_hat',
 		'fab_deploy.ubuntu',
 		'fab_deploy.joyent',
         'fab_deploy.amazon',
 		'fab_deploy.local',
 		],
-	version = '0.0.9',
+	version = '0.0.10',
     author='RED Interactive Agency',
     author_email='geeks@ff0000.com',
 

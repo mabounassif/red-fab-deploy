@@ -73,7 +73,6 @@ class PGBouncerInstall(Task):
     config = {
         '*':              'host=127.0.0.1',
         'logfile':        '/var/log/pgbouncer/pgbouncer.log',
-        'pidfile':        '/var/pgsql/pgbouncer/pgbouncer.pid',
         'listen_addr':    '*',
         'listen_port':    '6432',
         'unix_socket_dir': '/tmp',
@@ -84,11 +83,17 @@ class PGBouncerInstall(Task):
         'stats_users':    'postgres',
         }
 
-    def _setup_parameter(self, file, **kwargs):
+    def install_package(self):
+        sudo('pkg_add libevent')
+        with cd('/tmp'):
+            run('wget %s' %self.pgbouncer_src)
+            sudo('pkg_add %s' %self.pkg_name)
+
+    def _setup_parameter(self, file_name, **kwargs):
         for key, value in kwargs.items():
             origin = "%s =" %key
             new = "%s = %s" %(key, value)
-            sudo('sed -i "/%s/ c\%s" %s' %(origin, new, file))
+            sudo('sed -i "/%s/ c\%s" %s' %(origin, new, file_name))
 
     def _get_passwd(self, username):
         with hide('output'):
@@ -121,19 +126,21 @@ class PGBouncerInstall(Task):
         """
         """
 
-        sudo('pkg_add libevent')
         sudo('mkdir -p /opt/pkg/bin')
         sudo("ln -sf /opt/local/bin/awk /opt/pkg/bin/nawk")
         sudo("ln -sf /opt/local/bin/sed /opt/pkg/bin/nbsed")
 
-        with cd('/tmp'):
-            run('wget %s' %self.pgbouncer_src)
-            sudo('pkg_add %s' %self.pkg_name)
+        self.install_package()
 
         svc_method = os.path.join(env.configs_dir, 'pgbouncer.xml')
         put(svc_method, self.config_dir, use_sudo=True)
 
-        self._setup_parameter('%s/pgbouncer.ini' %self.config_dir, **self.config)
+        home = run('bash -c "echo ~postgres"')
+        bounce_home = os.path.join(home, 'pgbouncer')
+
+        pidfile = os.path.join(bounce_home, 'pgbouncer.pid')
+        self._setup_parameter('%s/pgbouncer.ini' %self.config_dir,
+                              pidfile=pidfile, **self.config)
 
         if not section:
             section = 'db-server'
@@ -142,10 +149,10 @@ class PGBouncerInstall(Task):
         # postgres should be the owner of these config files
         sudo('chown -R postgres:postgres %s' %self.config_dir)
 
-        # pgbouncer won't run smoothly without these directories
-        sudo('mkdir -p /var/pgsql/pgbouncer')
+        sudo('mkdir -p %s' % bounce_home)
+        sudo('chown postgres:postgres %s' % bounce_home)
+
         sudo('mkdir -p /var/log/pgbouncer')
-        sudo('chown postgres:postgres /var/pgsql/pgbouncer')
         sudo('chown postgres:postgres /var/log/pgbouncer')
 
         # set up log

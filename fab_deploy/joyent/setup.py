@@ -5,6 +5,10 @@ from fab_deploy.base import setup as base_setup
 
 class JoyentMixin(object):
 
+    def _set_profile(self):
+        append('/etc/profile', 'CC="gcc -m64"; export CC', use_sudo=True)
+        append('/etc/profile', 'LDSHARED="gcc -m64 -G"; export LDSHARED', use_sudo=True)
+
     def _ssh_restart(self):
         run('svcadm restart ssh')
 

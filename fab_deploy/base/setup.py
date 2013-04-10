@@ -24,8 +24,7 @@ class BaseSetup(Task):
     setup_snmp = True
 
     def _set_profile(self):
-        append('/etc/profile', 'CC="gcc -m64"; export CC', use_sudo=True)
-        append('/etc/profile', 'LDSHARED="gcc -m64 -G"; export LDSHARED', use_sudo=True)
+        pass
 
     def _is_section_exists(self, section):
         if env.config_object.has_section(section):

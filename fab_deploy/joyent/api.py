@@ -9,7 +9,7 @@ from fab_deploy import functions
 from smartdc import DataCenter
 
 DEFAULT_PACKAGE = 'Small 1GB'
-DEFAULT_DATASET = 'smartos64'
+DEFAULT_DATASET = 'base64'
 
 class New(Task):
     """

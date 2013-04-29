@@ -20,10 +20,10 @@ class SNMPSingleSync(base_snmp.SNMPSingleSync):
 
     def _add_package(self):
         sudo("pkg_add net-snmp")
-        run('svcadm enable sma')
+        run('svcadm enable snmp')
 
     def _restart_service(self):
-        run('svcadm restart sma')
+        run('svcadm restart snmp')
 
 
 update_files = base_snmp.SNMPUpdate()

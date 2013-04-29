@@ -1,4 +1,5 @@
-from fabric.api import run
+from fabric.api import run, sudo
+from fabric.contrib.files import append
 
 from fab_deploy.base import setup as base_setup
 

@@ -89,7 +89,7 @@ class New(Task):
 
         key_name = raw_input('Enter your ssh key name: ')
         key_id = '/%s/keys/%s' % ( env.joyent_account, key_name)
-        sdc = DataCenter(location=location, key_id=key_id, allow_agent=True)
+        sdc = DataCenter(location=location, key_id=key_id, allow_agent=False)
 
         name = functions.get_remote_name(None, task.config_section,
                                          name=kwargs.get('name'))

@@ -21,7 +21,7 @@ class JoyentMixin(object):
         output = run('svcprop -p config/data postgresql')
         if output.stdout and exists(output.stdout, use_sudo=True):
             return output.stdout
-        return PostgresInstall._get_data_dir(self, db_version)
+        return base_postgres.PostgresInstall._get_data_dir(self, db_version)
 
     def _install_package(self, db_version):
         sudo("pkg_add postgresql%s-server" %db_version)

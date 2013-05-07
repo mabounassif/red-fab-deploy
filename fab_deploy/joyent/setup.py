@@ -15,7 +15,7 @@ class JoyentMixin(object):
 
 class AppMixin(JoyentMixin):
     packages = ['python27', 'py27-psycopg2', 'py27-setuptools',
-                'py27-imaging']
+                'py27-imaging', 'py27-expat']
 
     def _install_packages(self):
         for package in self.packages:

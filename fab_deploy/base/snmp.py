@@ -18,7 +18,7 @@ class SNMPSingleSync(Task):
     """
 
     name = 'sync_single'
-    remote_config_path = '/etc/sma/snmp/snmpd.conf'
+    remote_config_path = '/opt/local/etc/snmpd.conf'
 
     def _add_package(self):
         raise NotImplementedError()

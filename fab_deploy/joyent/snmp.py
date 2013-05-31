@@ -16,9 +16,11 @@ class SNMPSingleSync(base_snmp.SNMPSingleSync):
     * **filename**: the full path to the file to sync.
     """
 
+    remote_config_path = '/opt/local/etc/snmpd.conf'
     name = 'sync_single'
 
     def _add_package(self):
+        sudo("mkdir -p /var/net-snmp/mib_indexes")
         sudo("pkg_add net-snmp")
         run('svcadm enable snmp')
 

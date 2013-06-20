@@ -1,4 +1,5 @@
 import os
+import sys
 
 from fabric.api import env
 
@@ -48,6 +49,8 @@ def setup_env(project_path):
 
     BASE = os.path.abspath(os.path.dirname(__file__))
     env.configs_dir = os.path.join(BASE, 'default-configs')
+    sys.path.insert(0, os.path.join(env.project_path,  'env', 'lib',
+                                    'python2.7', 'site-packages'))
 
     # Read the config and store it in env
     config = CustomConfig()

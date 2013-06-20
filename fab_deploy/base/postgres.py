@@ -246,14 +246,19 @@ class SlaveSetup(PostgresInstall):
         wal_dir = os.path.join(data_dir, 'wal_archive')
         recovery_conf = os.path.join(data_dir, 'recovery.conf')
 
+        if psql_bin:
+            pg_archive = '{0}pg_archivecleanup'.format(psql_bin)
+        else:
+            pg_archive = run('which pg_archivecleanup')
+
         txts = (("standby_mode = 'on'\n") +
                 ("primary_conninfo = 'host=%s " %master_ip) +
                     ("port=5432 user=replicator password=%s'\n" % password) +
                 ("trigger_file = '/tmp/pgsql.trigger'\n") +
                 ("restore_command = 'cp -f %s/%s </dev/null'\n"
                     %(wal_dir, '%f %p')) +
-                ("archive_cleanup_command = '%spg_archivecleanup %s %s'\n"
-                    %(psql_bin, wal_dir, "%r")))
+                ("archive_cleanup_command = '%s %s %s'\n"
+                    %(pg_archive, wal_dir, "%r")))
 
         sudo('touch %s' % recovery_conf)
         append(recovery_conf, txts, use_sudo=True)

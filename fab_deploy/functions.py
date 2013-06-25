@@ -123,16 +123,12 @@ def random_password(bit=12):
 
 def render_templates(filenames, app_name, platform, context=None):
 
-    remote_path = os.path.join(env.git_working_dir, 'deploy','gunicorn')
+    remote_path = os.path.join(env.git_working_dir, 'deploy',app_name)
     local_path = os.path.join(env.deploy_path, 'templates', app_name)
 
-    # TODO: extract current platform. Using base now, since nothing is in correct
-    #       platform folders anyway
     redfab_defaults_base = os.path.join(env.configs_dir, 'templates', 'base', app_name)
     redfab_defaults_platform = os.path.join(env.configs_dir, 'templates', platform, app_name)
     search_paths = [local_path, redfab_defaults_platform, redfab_defaults_base]
-    for path in search_paths:
-        print path
 
     envi = Environment(loader=FileSystemLoader(search_paths))
 

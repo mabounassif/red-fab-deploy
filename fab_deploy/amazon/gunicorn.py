@@ -1,6 +1,10 @@
 import os
 
-from fab_deploy.ubuntu.gunicorn import GunicornInstall, GunicornControl
+from fab_deploy.ubuntu import gunicorn
+
+class GunicornInstall(gunicorn.GunicornInstall):
+	platform = 'amazon'
+
 
 setup = GunicornInstall()
-control = GunicornControl()
+control = gunicorn.GunicornControl()

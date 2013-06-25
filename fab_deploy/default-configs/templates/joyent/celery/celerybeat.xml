@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="celerybeat">
+  <service name="celerybeat" type="service" version="1">
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default" />
+    </dependency>
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local" />
+    </dependency>
+    <method_context>
+      <method_credential user="www" group="www" />
+      <method_environment>
+        <envvar name="DJANGO_SETTINGS_MODULE" value="settings" />
+      </method_environment>
+    </method_context>
+    <instance name='celerybeat' enabled='false'>
+        <exec_method type="method" name="start" exec="{{ celerybeat_script }} start" timeout_seconds="60" />
+        <exec_method type="method" name="stop" exec="{{ celerybeat_script }} stop" timeout_seconds="60" />
+        <exec_method type="method" name="restart" exec="{{ celerybeat_script }} restart" timeout_seconds="60" />
+        <property_group name="startd" type="framework">
+            <propval name="duration" type="astring" value="contract" />
+            <propval name="ignore_error" type="astring" value="core,signal" />
+        </property_group>
+        <property_group name="celerybeat" type="application">
+          <propval name="python" type="astring" value="{{ python_exec }}" />
+          <propval name="command_prefix" type="astring" value=" {{ django_manage }}" />
+          <propval name="pid_file" type="astring" value="{{ user_celerybeat_pid }}" />
+          <propval name="log_file" type="astring" value="{{ user_celerybeat_log }}" />
+          <propval name="log_level" type="astring" value="WARNING" />
+          <propval name="schedule" type="astring" value="{{ user_celerybeat_schedule }}" />
+        </property_group>
+        <template>
+          <common_name>
+            <loctext xml:lang="C">CeleryBeat</loctext>
+          </common_name>
+        </template>
+    </instance>
+    <stability value="Evolving" />
+  </service>
+</service_bundle>

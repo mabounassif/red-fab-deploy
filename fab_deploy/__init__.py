@@ -1,5 +1,4 @@
 import os
-import sys
 
 from fabric.api import env
 
@@ -49,8 +48,13 @@ def setup_env(project_path):
 
     BASE = os.path.abspath(os.path.dirname(__file__))
     env.configs_dir = os.path.join(BASE, 'default-configs')
-    sys.path.insert(0, os.path.join(env.project_path,  'env', 'lib',
-                                    'python2.7', 'site-packages'))
+    env.templates_dir = os.path.join(env.configs_dir, 'templates')
+
+    env.gunicorn_context = {}
+    env.newrelic_context = { 'newrelic_env' : 'NEWRELIC_ENV',
+                             'newrelic_config' : 'NEWRELIC_CONFIG', 
+                             'newrelic_env_admin' : 'NEWRELIC_ENV_ADMIN',
+                           }
 
     # Read the config and store it in env
     config = CustomConfig()

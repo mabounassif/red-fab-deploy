@@ -46,7 +46,7 @@ setup(
 
     package_data={
         'fab_deploy': [
-            'default-configs/*',
+        	'default-configs/templates/*/*/*',
         ]
     },
 

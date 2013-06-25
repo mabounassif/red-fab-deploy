@@ -3,8 +3,12 @@ import urlparse
 import os
 import random
 
-from fabric.api import env
+from fabric.api import env, put
 from fabric.task_utils import crawl
+
+from jinja2 import Environment, FileSystemLoader
+
+from StringIO import StringIO
 
 def get_answer(prompt):
     """
@@ -116,3 +120,26 @@ def random_password(bit=12):
     random.shuffle(passwd)
 
     return ''.join(passwd)
+
+def render_templates(filenames, app_name, platform, context=None):
+
+    remote_path = os.path.join(env.git_working_dir, 'deploy','gunicorn')
+    local_path = os.path.join(env.deploy_path, 'templates', app_name)
+
+    # TODO: extract current platform. Using base now, since nothing is in correct
+    #       platform folders anyway
+    redfab_defaults_base = os.path.join(env.configs_dir, 'templates', 'base', app_name)
+    redfab_defaults_platform = os.path.join(env.configs_dir, 'templates', platform, app_name)
+    search_paths = [local_path, redfab_defaults_platform, redfab_defaults_base]
+    for path in search_paths:
+        print path
+
+    envi = Environment(loader=FileSystemLoader(search_paths))
+
+    for filename in filenames:
+        dest_path = os.path.join(remote_path, filename)
+        template = (envi.get_template(filename)).render(**context or {})
+        put(local_path=StringIO(template), remote_path = dest_path, use_sudo = True)
+
+
+

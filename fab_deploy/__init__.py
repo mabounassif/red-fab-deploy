@@ -48,13 +48,11 @@ def setup_env(project_path):
 
     BASE = os.path.abspath(os.path.dirname(__file__))
     env.configs_dir = os.path.join(BASE, 'default-configs')
+    env.remote_configs = '/srv/configs/'
     env.templates_dir = os.path.join(env.configs_dir, 'templates')
 
-    env.gunicorn_context = {}
-    env.newrelic_context = { 'newrelic_env' : 'NEWRELIC_ENV',
-                             'newrelic_config' : 'NEWRELIC_CONFIG', 
-                             'newrelic_env_admin' : 'NEWRELIC_ENV_ADMIN',
-                           }
+    env.template_context = {}
+
 
     # Read the config and store it in env
     config = CustomConfig()

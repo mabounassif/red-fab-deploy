@@ -21,7 +21,6 @@ class GunicornControl(base_gunicorn.Control):
         sudo('supervisorctl restart %s' % self.get_name())
 
 class GunicornInstall(base_gunicorn.GunicornInstall):
-    platform = 'ubuntu'
     """
     Install gunicorn and set it up with svcadm.
     """
@@ -54,13 +53,20 @@ class GunicornInstall(base_gunicorn.GunicornInstall):
         sudo('supervisorctl update')
 
         context = dict(self.default_context)
-        context.update(env.get('gunicorn_context', {}))
-        context.update(env.get('newrelic_context', {}))
+        context.update(env.template_context.get("newrelic", {}))
 
-        filenames = ['gunicorn.py', 'gunicorn.xml', 'start_gunicorn.sh',
-             'supervisor_gunicorn.conf', 'supervisor_start_gunicorn.sh']
+        dir_path = os.path.join(env.remote_configs, self.gunicorn_name)
+        if not os.path.exists(dir_path):
+            sudo('mkdir %s' % dir_path)
 
-        functions.render_templates(filenames, self.gunicorn_name, self.platform, context=context)
+        functions.render_template('%s/%s.py' % (self.gunicorn_name, self.gunicorn_name),
+                                     env.remote_configs, context = context)
+        functions.render_template('%s/start_%s.sh' % (self.gunicorn_name, self.gunicorn_name),
+                                     env.remote_configs, context = context)
+        functions.render_template('%s/supervisor_%s.conf' % (self.gunicorn_name, self.gunicorn_name),
+                                     env.remote_configs, context = context)
+        functions.render_template('%s/supervisor_start_%s.sh' % (self.gunicorn_name, self.gunicorn_name),
+                                     env.remote_configs, context = context)
 
     def _setup_rotate(self, path):
         text = [

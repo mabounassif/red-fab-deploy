@@ -121,21 +121,17 @@ def random_password(bit=12):
 
     return ''.join(passwd)
 
-def render_templates(filenames, app_name, platform, context=None):
+def render_template(filename, remote_path, context=None):
 
-    remote_path = os.path.join(env.git_working_dir, 'deploy',app_name)
-    local_path = os.path.join(env.deploy_path, 'templates', app_name)
-
-    redfab_defaults_base = os.path.join(env.configs_dir, 'templates', 'base', app_name)
-    redfab_defaults_platform = os.path.join(env.configs_dir, 'templates', platform, app_name)
+    local_path = os.path.join(env.deploy_path, 'templates')
+    redfab_defaults_platform = os.path.join(env.configs_dir, 'templates', env.get('platform', 'base'))
+    redfab_defaults_base = os.path.join(env.configs_dir, 'templates', 'base')
     search_paths = [local_path, redfab_defaults_platform, redfab_defaults_base]
 
     envi = Environment(loader=FileSystemLoader(search_paths))
-
-    for filename in filenames:
-        dest_path = os.path.join(remote_path, filename)
-        template = (envi.get_template(filename)).render(**context or {})
-        put(local_path=StringIO(template), remote_path = dest_path, use_sudo = True)
+    dest_path = os.path.join(remote_path, filename)
+    template = (envi.get_template(filename)).render(**context or {})
+    put(local_path=StringIO(template), remote_path = dest_path, use_sudo = True)
 
 
 

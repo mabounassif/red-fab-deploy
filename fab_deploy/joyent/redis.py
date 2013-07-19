@@ -24,7 +24,7 @@ class RedisInstall(base_redis.RedisInstall):
     config_location = '/opt/local/etc/redis.conf'
 
     def _install_package(self):
-        sudo('pkg_add redis-2.6.9')
+        sudo('pkg_add redis')
 
 setup = RedisInstall()
 control = RedisControl()

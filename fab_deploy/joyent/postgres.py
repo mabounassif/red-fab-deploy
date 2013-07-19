@@ -165,3 +165,4 @@ class PGBouncerInstall(Task):
 setup = PostgresInstall()
 slave_setup = SlaveSetup()
 setup_pgbouncer = PGBouncerInstall()
+setup_backup = base_postgres.Backups()
